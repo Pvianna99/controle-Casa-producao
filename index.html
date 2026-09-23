@@ -1,0 +1,1578 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#8E1B1B">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Controle de Produção</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --carne: #8E1B1B;
+  --carne-2: #6B1313;
+  --gordura: #F3E2CB;
+  --tosta: #33241B;
+  --papel: #FCFBF9;
+  --cinza: #76695F;
+  --linha: #E6DED4;
+  --verde: #2C7449;
+  --verde-bg: #E6F2EA;
+  --laranja: #B9520F;
+  --laranja-bg: #FBEBDD;
+  --vermelho-bg: #F8E1E1;
+  --azul: #2F5E8C;
+  --azul-bg: #E5EEF7;
+  --display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --texto: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --raio: 10px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { font-family: var(--texto); font-size: 16px; line-height: 1.45; color: var(--tosta); background: var(--papel); padding-bottom: env(safe-area-inset-bottom, 0px); -webkit-font-smoothing: antialiased; }
+h1, h2, h3 { font-family: var(--display); font-weight: 700; line-height: 1.1; margin: 0; letter-spacing: .01em; }
+h2 { font-size: 1.7rem; }
+h3 { font-size: 1.25rem; }
+p { margin: 0; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid #E0A33B; outline-offset: 2px; }
+.hidden { display: none !important; }
+.sub { color: var(--cinza); font-size: .95rem; margin-top: 4px; }
+
+/* ---------- Topo ---------- */
+.topo { background: var(--carne); color: #fff; padding: calc(env(safe-area-inset-top, 0px) + 14px) 18px 14px; position: sticky; top: 0; z-index: 20; }
+.topo::after { content: ""; position: absolute; left: 0; right: 0; bottom: -7px; height: 7px;
+  background: repeating-linear-gradient(90deg, var(--carne-2) 0 26px, var(--gordura) 26px 34px, #B8402E 34px 58px, var(--gordura) 58px 64px); }
+.topo-in { max-width: 1040px; margin: 0 auto; display: flex; align-items: center; gap: 14px; }
+.marca h1 { font-size: 1.6rem; }
+.topo-acoes { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.icone-btn { background: transparent; border: 0; color: inherit; padding: 8px; border-radius: 8px; cursor: pointer; display: grid; place-items: center; }
+.icone-btn:hover { background: rgba(255,255,255,.12); }
+.alertas-btn { white-space: nowrap; border: 0; cursor: pointer; padding: 8px 14px; border-radius: 8px; background: rgba(0,0,0,.2); color: #fff; font-weight: 600; text-align: right; line-height: 1.2; }
+.alertas-btn small { display: block; font-weight: 400; font-size: .75rem; opacity: .85; }
+.alertas-btn.tem { background: #FFD76A; color: var(--carne-2); }
+
+/* ---------- Abas ---------- */
+.abas { max-width: 1040px; margin: 22px auto 0; padding: 0 12px; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+.abas::-webkit-scrollbar { display: none; }
+.aba { flex: 0 0 auto; border: 0; background: transparent; padding: 10px 14px; border-radius: 999px; font-weight: 600; color: var(--cinza); cursor: pointer; white-space: nowrap; }
+.aba:hover { color: var(--tosta); background: var(--linha); }
+.aba[aria-selected="true"] { background: var(--tosta); color: #fff; }
+main { max-width: 1040px; margin: 0 auto; padding: 16px 12px 60px; }
+section[data-tab] { display: grid; gap: 14px; }
+
+.painel { background: #fff; border: 1px solid var(--linha); border-radius: var(--raio); padding: 20px; }
+.painel-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+
+/* ---------- Formulários ---------- */
+label.campo { display: grid; gap: 6px; font-weight: 500; font-size: .92rem; }
+input[type=text], input[type=number], input[type=date], input[type=email], input[type=password], input[type=search], select {
+  width: 100%; padding: 12px 14px; border: 1px solid var(--linha); border-radius: 8px; background: var(--papel); font-size: 1rem; }
+input:focus, select:focus { border-color: var(--tosta); outline: none; box-shadow: 0 0 0 3px rgba(51,36,27,.12); }
+.grade-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.grade-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+@media (max-width: 640px) { .grade-2, .grade-3 { grid-template-columns: 1fr; } }
+.linha { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.linha > .cresce { flex: 1 1 180px; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 18px; border-radius: 8px; border: 1px solid var(--linha); background: #fff; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.btn:hover { border-color: var(--tosta); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn.primary { background: var(--carne); border-color: var(--carne); color: #fff; }
+.btn.primary:hover { background: var(--carne-2); }
+.btn.escuro { background: var(--tosta); border-color: var(--tosta); color: #fff; }
+.btn.danger { background: #fff; border-color: #D9A5A5; color: var(--carne); }
+.btn.danger:hover { background: var(--vermelho-bg); }
+.btn.grande { width: 100%; padding: 18px; font-size: 1.1rem; font-family: var(--display); letter-spacing: .02em; }
+.btn.pequeno { padding: 7px 12px; font-size: .88rem; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { border: 1px solid var(--linha); background: #fff; padding: 8px 14px; border-radius: 999px; cursor: pointer; font-weight: 500; }
+.chip[aria-pressed="true"] { background: var(--tosta); color: #fff; border-color: var(--tosta); }
+.chip.apagado { opacity: .55; }
+
+/* ---------- Números ---------- */
+.numeros { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+.numero { border-radius: var(--raio); padding: 14px 16px; background: var(--papel); border: 1px solid var(--linha); }
+.numero span { font-size: .85rem; color: var(--cinza); }
+.numero strong { display: block; font-family: var(--display); font-size: 1.8rem; line-height: 1.1; margin-top: 2px; }
+.numero em { display: block; font-style: normal; font-size: .82rem; color: var(--cinza); }
+.numero.verde strong { color: var(--verde); }
+.numero.laranja strong { color: var(--laranja); }
+.numero.carne strong { color: var(--carne); }
+
+/* ---------- Cards de produto ---------- */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 12px; }
+.card-prod { border: 1px solid var(--linha); border-radius: var(--raio); padding: 16px; display: grid; gap: 10px; background: #fff; border-top: 5px solid var(--verde); }
+.card-prod.baixo { border-top-color: #E0A33B; }
+.card-prod.zerado { border-top-color: var(--carne); }
+.card-prod .topo-card { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.card-prod .qtd { font-family: var(--display); font-size: 2.4rem; font-weight: 700; line-height: 1; }
+.card-prod .capac { font-size: .88rem; color: var(--cinza); display: grid; gap: 2px; padding-top: 8px; border-top: 1px dashed var(--linha); }
+
+/* ---------- Listas ---------- */
+.lista { display: grid; gap: 8px; }
+.item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--linha); border-radius: 8px; background: #fff; flex-wrap: wrap; }
+.item .principal { flex: 1 1 220px; min-width: 0; }
+.item .principal b { font-weight: 600; }
+.item .meta { font-size: .85rem; color: var(--cinza); }
+.item .direita { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: wrap; justify-content: flex-end; }
+.tag { display: inline-block; font-size: .76rem; font-weight: 600; padding: 3px 9px; border-radius: 999px; margin-right: 4px; vertical-align: 1px; white-space: nowrap; }
+.tag.entrada, .tag.ok { background: var(--verde-bg); color: var(--verde); }
+.tag.saida, .tag.baixo { background: var(--laranja-bg); color: var(--laranja); }
+.tag.baixa, .tag.zerado { background: var(--vermelho-bg); color: var(--carne); }
+.tag.embalagem { background: var(--azul-bg); color: var(--azul); }
+.tag.ingrediente { background: var(--gordura); color: #6B4A2B; }
+.peso { font-family: var(--display); font-weight: 700; font-size: 1.15rem; }
+.negativo { color: var(--carne); font-weight: 600; }
+.vazio { text-align: center; color: var(--cinza); padding: 26px 10px; border: 1px dashed var(--linha); border-radius: 8px; }
+
+/* insumo */
+.insumo { display: grid; grid-template-columns: minmax(0, 1fr) 150px auto; gap: 14px; align-items: center; padding: 12px 14px; border: 1px solid var(--linha); border-radius: 8px; background: #fff; border-left: 5px solid var(--verde); }
+.insumo.baixo { border-left-color: #E0A33B; }
+.insumo.zerado { border-left-color: var(--carne); }
+.insumo .qtd-ins { font-family: var(--display); font-weight: 700; font-size: 1.35rem; line-height: 1; }
+.insumo .acoes { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.nivel { height: 6px; background: var(--linha); border-radius: 999px; overflow: hidden; margin-top: 6px; }
+.nivel i { display: block; height: 100%; background: var(--verde); }
+.baixo .nivel i { background: #E0A33B; }
+.zerado .nivel i { background: var(--carne); }
+@media (max-width: 640px) {
+  .insumo { grid-template-columns: 1fr auto; }
+  .insumo .acoes { grid-column: 1 / -1; justify-content: flex-start; }
+}
+
+/* ---------- Tabela ---------- */
+.tabela-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+th { text-align: left; font-weight: 600; color: var(--cinza); font-size: .82rem; padding: 8px 6px; border-bottom: 1px solid var(--linha); white-space: nowrap; }
+td { padding: 10px 6px; border-bottom: 1px solid var(--linha); vertical-align: middle; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+td input { max-width: 110px; padding: 8px 10px; text-align: right; }
+td select { padding: 8px 10px; min-width: 120px; }
+tfoot td { font-weight: 600; border-bottom: 0; }
+
+/* ---------- Scanner ---------- */
+.leitor { width: 100%; max-width: 420px; margin: 0 auto 14px; border-radius: var(--raio); overflow: hidden; background: #000; }
+.confirma { border: 2px solid var(--tosta); }
+.confirma .peso-grande { font-family: var(--display); font-size: 3rem; font-weight: 700; line-height: 1; }
+.alerta { padding: 14px 16px; border-radius: 8px; background: var(--vermelho-bg); color: var(--carne-2); font-weight: 500; }
+.aviso { padding: 12px 14px; border-radius: 8px; background: var(--laranja-bg); color: #7A3508; font-size: .92rem; }
+
+/* ---------- Escolha da ficha ---------- */
+.fichas-escolha { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
+.ficha-opcao { text-align: left; border: 1px solid var(--linha); background: #fff; border-radius: 8px; padding: 12px 14px; cursor: pointer; display: grid; gap: 2px; }
+.ficha-opcao b { font-weight: 600; }
+.ficha-opcao span { font-size: .85rem; color: var(--cinza); }
+.ficha-opcao:hover:not(:disabled) { border-color: var(--tosta); }
+.ficha-opcao[aria-pressed="true"] { border: 2px solid var(--tosta); background: var(--gordura); padding: 11px 13px; }
+.ficha-opcao:disabled { opacity: .5; cursor: not-allowed; }
+.passo { font-family: var(--display); font-weight: 700; font-size: 1.2rem; margin: 22px 0 10px; }
+
+/* ---------- Pesos ---------- */
+.pesos { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-top: 14px; }
+.pesos label { display: flex; align-items: center; gap: 8px; background: var(--papel); border: 1px solid var(--linha); border-radius: 8px; padding: 6px 10px; }
+.pesos label span { font-family: var(--display); font-weight: 600; color: var(--cinza); min-width: 30px; }
+.pesos input { border: 0; background: transparent; padding: 6px 0; text-align: right; }
+.pesos input:focus { box-shadow: none; }
+.resumo-lote { margin-top: 16px; padding: 14px 16px; background: var(--gordura); border-radius: 8px; display: grid; gap: 6px; font-size: .95rem; }
+.resumo-lote .total { font-family: var(--display); font-size: 1.5rem; font-weight: 700; }
+
+/* ---------- Etiquetas ---------- */
+.etiquetas { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.etiqueta { border: 1.5px dashed #C9B9A6; border-radius: 8px; padding: 12px; text-align: center; background: #fff; }
+.etiqueta .et-titulo { font-family: var(--display); font-weight: 700; font-size: 1.15rem; color: var(--carne); line-height: 1.1; }
+.etiqueta img { width: 130px; height: 130px; display: block; margin: 6px auto; image-rendering: pixelated; }
+.etiqueta .et-cod { font-family: var(--display); font-weight: 600; font-size: .95rem; }
+.etiqueta .et-peso { font-family: var(--display); font-weight: 700; font-size: 1.6rem; line-height: 1.1; }
+.etiqueta .et-meta { font-size: .78rem; color: var(--cinza); }
+
+/* ---------- Barras ---------- */
+.barra { display: grid; gap: 4px; }
+.barra-topo { display: flex; justify-content: space-between; gap: 10px; font-size: .95rem; }
+.barra-fundo { height: 10px; border-radius: 999px; background: var(--linha); overflow: hidden; }
+.barra-fundo i { display: block; height: 100%; background: var(--laranja); border-radius: 999px; }
+.grafico { position: relative; height: 260px; }
+
+/* ---------- Modal e aviso ---------- */
+.modal-bg { position: fixed; inset: 0; background: rgba(40,25,18,.5); display: grid; place-items: center; padding: 16px; z-index: 100; animation: surge .15s ease-out; }
+.modal { background: #fff; border-radius: 12px; width: 100%; max-width: 480px; max-height: 88vh; overflow: auto; padding: 22px; display: grid; gap: 16px; }
+.modal-body { display: grid; gap: 12px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+@keyframes surge { from { opacity: 0; } }
+.toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 20px); transform: translateX(-50%); background: var(--tosta); color: #fff; padding: 12px 18px; border-radius: 8px; z-index: 200; max-width: 92vw; font-weight: 500; box-shadow: 0 6px 20px rgba(0,0,0,.2); }
+.toast.erro { background: var(--carne); }
+
+.login { min-height: 100vh; display: grid; place-items: center; padding: 20px; background: var(--carne); }
+.login .painel { width: 100%; max-width: 380px; display: grid; gap: 14px; }
+.login h1 { font-size: 2.1rem; color: var(--carne); }
+
+@media (max-width: 560px) {
+  .marca h1 { font-size: 1.25rem; }
+  .painel { padding: 16px; }
+}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+
+/* ---------- Impressão ---------- */
+#area-impressao { display: none; }
+@media print {
+  @page { margin: 8mm; }
+  body { background: #fff; }
+  body > *:not(#area-impressao) { display: none !important; }
+  #area-impressao { display: block; }
+  .etiquetas { grid-template-columns: repeat(auto-fill, 52mm); gap: 4mm; }
+  .etiqueta { width: 52mm; break-inside: avoid; padding: 3mm; border: 1px dashed #999; }
+  .etiqueta img { width: 32mm; height: 32mm; }
+  .painel { border: 0; padding: 0; }
+}
+</style>
+</head>
+<body>
+
+<!-- ================= LOGIN ================= -->
+<div id="tela-login" class="login hidden">
+  <form id="form-login" class="painel">
+    <div>
+      <h1 class="nome-app">Controle de Produção</h1>
+      <p class="sub">Entre com o e-mail e a senha cadastrados no Supabase.</p>
+    </div>
+    <label class="campo">E-mail<input type="email" id="login-email" autocomplete="username" autocapitalize="off" spellcheck="false" required></label>
+    <label class="campo">Senha<input type="password" id="login-senha" autocomplete="current-password" required></label>
+    <button class="btn primary grande" type="submit">Entrar</button>
+  </form>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app" class="hidden">
+  <header class="topo">
+    <div class="topo-in">
+      <div class="marca"><h1 class="nome-app">Controle de Produção</h1></div>
+      <div class="topo-acoes">
+        <button class="icone-btn" id="btn-atualizar" title="Atualizar" aria-label="Atualizar dados">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><path d="M21 3v5h-5"/></svg>
+        </button>
+        <button class="alertas-btn" id="btn-alertas" title="Ver estoque"><small>Estoque</small><span id="alertas-txt">–</span></button>
+        <button class="icone-btn" id="btn-sair" title="Sair" aria-label="Sair">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <nav class="abas" role="tablist">
+    <button class="aba" role="tab" data-aba="estoque">📦 Estoque</button>
+    <button class="aba" role="tab" data-aba="saida">📷 Saída</button>
+    <button class="aba" role="tab" data-aba="producao">🏭 Produção</button>
+    <button class="aba" role="tab" data-aba="historico">📋 Histórico</button>
+    <button class="aba" role="tab" data-aba="relatorio">📊 Relatório</button>
+    <button class="aba" role="tab" data-aba="performance">📈 Performance</button>
+    <button class="aba" role="tab" data-aba="produtos">📝 Produtos e fichas</button>
+    <button class="aba" role="tab" data-aba="insumos">🧂 Insumos</button>
+  </nav>
+
+  <main>
+    <!-- ESTOQUE -->
+    <section data-tab="estoque" class="hidden">
+      <div class="painel">
+        <div class="painel-topo"><div><h2>Produtos prontos</h2><p class="sub">Potes em estoque e quanto os insumos ainda permitem produzir.</p></div></div>
+        <div id="est-produtos" class="cards"></div>
+      </div>
+      <div class="painel">
+        <div class="painel-topo">
+          <div><h2>Insumos</h2><p class="sub" id="est-ins-resumo"></p></div>
+          <div class="chips" id="est-filtro">
+            <button class="chip" data-f="alerta" aria-pressed="true">Em alerta</button>
+            <button class="chip" data-f="ingrediente" aria-pressed="false">Ingredientes</button>
+            <button class="chip" data-f="embalagem" aria-pressed="false">Embalagens</button>
+            <button class="chip" data-f="todos" aria-pressed="false">Todos</button>
+          </div>
+        </div>
+        <div id="est-insumos" class="lista"></div>
+      </div>
+    </section>
+
+    <!-- SAÍDA -->
+    <section data-tab="saida" class="hidden">
+      <div class="painel">
+        <h2>Registrar saída</h2>
+        <p class="sub">Escaneie o QR code do pote ou digite o código da etiqueta.</p>
+        <div style="margin-top:16px">
+          <div id="leitor" class="leitor hidden"></div>
+          <button id="btn-camera" class="btn primary grande">📷 Escanear QR code do pote</button>
+        </div>
+        <form id="form-codigo" class="linha" style="margin-top:12px">
+          <label class="campo cresce">Ou digite o código<input type="text" id="codigo-manual" placeholder="FB-260922-2029-001" autocapitalize="characters" autocomplete="off"></label>
+          <button class="btn" type="submit">Buscar</button>
+        </form>
+      </div>
+      <div id="saida-resultado"></div>
+      <div class="painel">
+        <h3>Últimas saídas</h3>
+        <div id="ultimas-saidas" class="lista" style="margin-top:12px"></div>
+      </div>
+    </section>
+
+    <!-- PRODUÇÃO -->
+    <section data-tab="producao" class="hidden">
+      <div class="painel" id="lote-form">
+        <h2>Registrar produção</h2>
+        <p class="sub">A produção parte da ficha técnica: os insumos são descontados conforme a ficha e a quantidade de receitas que você fez.</p>
+        <div class="passo">1. Escolha a ficha técnica</div>
+        <div class="fichas-escolha" id="prod-escolha"></div>
+        <div id="prod-form-corpo"></div>
+      </div>
+      <div id="lote-etiquetas"></div>
+    </section>
+
+    <!-- HISTÓRICO -->
+    <section data-tab="historico" class="hidden">
+      <div class="painel">
+        <div class="grade-3">
+          <label class="campo">Produto<select id="hist-produto"></select></label>
+          <label class="campo">De<input type="date" id="hist-de"></label>
+          <label class="campo">Até<input type="date" id="hist-ate"></label>
+        </div>
+        <div class="chips" id="hist-tipos" style="margin-top:12px">
+          <button class="chip" data-tipo="todos" aria-pressed="true">Todos</button>
+          <button class="chip" data-tipo="entrada" aria-pressed="false">Entradas</button>
+          <button class="chip" data-tipo="saida" aria-pressed="false">Saídas</button>
+          <button class="chip" data-tipo="baixa" aria-pressed="false">Baixas</button>
+        </div>
+      </div>
+      <p class="sub" id="hist-contagem"></p>
+      <div id="hist-lista" class="lista"></div>
+    </section>
+
+    <!-- RELATÓRIO -->
+    <section data-tab="relatorio" class="hidden">
+      <div class="painel">
+        <div class="painel-topo">
+          <h2>Relatório do período</h2>
+          <div class="linha">
+            <button class="btn pequeno" id="btn-csv">Exportar planilha (CSV)</button>
+            <button class="btn pequeno" id="btn-imprimir-rel">Imprimir</button>
+          </div>
+        </div>
+        <div class="grade-3">
+          <label class="campo">Produto<select id="rel-produto"></select></label>
+          <label class="campo">De<input type="date" id="rel-de"></label>
+          <label class="campo">Até<input type="date" id="rel-ate"></label>
+        </div>
+      </div>
+      <div id="rel-conteudo"></div>
+    </section>
+
+    <!-- PERFORMANCE -->
+    <section data-tab="performance" class="hidden">
+      <div class="painel"><label class="campo" style="max-width:320px">Produto<select id="perf-produto"></select></label></div>
+      <div id="perf-numeros" class="numeros"></div>
+      <div class="painel">
+        <h3>Produção e saídas por mês (kg)</h3>
+        <div class="grafico" style="margin-top:12px"><canvas id="graf-barras"></canvas></div>
+      </div>
+      <div class="painel">
+        <h3>Saídas por loja nos últimos 6 meses</h3>
+        <div id="perf-lojas" class="lista" style="margin-top:12px"></div>
+      </div>
+    </section>
+
+    <!-- PRODUTOS E FICHAS -->
+    <section data-tab="produtos" class="hidden">
+      <div class="painel">
+        <div class="painel-topo">
+          <div><h2>Produtos e fichas técnicas</h2><p class="sub">Cada produto tem a sua ficha. Toque num produto para editar.</p></div>
+          <button class="btn primary" id="btn-novo-produto">+ Novo produto</button>
+        </div>
+        <div class="chips" id="ficha-produtos"></div>
+      </div>
+      <div id="ficha-corpo"></div>
+    </section>
+
+    <!-- INSUMOS -->
+    <section data-tab="insumos" class="hidden">
+      <div class="painel">
+        <div class="painel-topo">
+          <div><h2>Insumos</h2><p class="sub">Ingredientes e embalagens. O estoque é descontado sozinho quando você registra uma produção.</p></div>
+          <button class="btn primary" id="btn-novo-ins">+ Novo insumo</button>
+        </div>
+        <div class="linha">
+          <label class="campo cresce">Buscar<input type="search" id="ins-busca" placeholder="Nome do insumo"></label>
+          <div class="chips" id="ins-filtro">
+            <button class="chip" data-f="todos" aria-pressed="true">Todos</button>
+            <button class="chip" data-f="ingrediente" aria-pressed="false">Ingredientes</button>
+            <button class="chip" data-f="embalagem" aria-pressed="false">Embalagens</button>
+            <button class="chip" data-f="alerta" aria-pressed="false">Em alerta</button>
+          </div>
+        </div>
+        <div id="ins-resumo" class="numeros" style="margin-top:16px"></div>
+      </div>
+      <div id="ins-lista" class="lista"></div>
+    </section>
+  </main>
+</div>
+
+<div id="area-impressao"></div>
+
+<script>
+/* =====================================================================
+   Utilidades
+   ===================================================================== */
+const CFG = window.APP_CONFIG || {};
+const NOME_APP = CFG.NOME_APP || "Controle de Produção";
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const num = v => { if (v === null || v === undefined || String(v).trim() === "") return null; const n = parseFloat(String(v).trim().replace(/\s/g, "").replace(",", ".")); return isNaN(n) ? null : n; };
+const fmt = (n, d = 2) => Number(n || 0).toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d });
+const fmtQ = (n, max = 3) => Number(n || 0).toLocaleString("pt-BR", { maximumFractionDigits: max });
+const kg = (n, d = 2) => fmt(n, d) + " kg";
+const brl = n => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const brlUnit = n => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: Number(n) < 1 ? 4 : 2 });
+const gramas = n => Math.round(Number(n) * 1000).toLocaleString("pt-BR") + " g";
+const dataHora = d => new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" });
+const dataCurta = d => new Date(d).toLocaleDateString("pt-BR");
+const hojeISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+const diasAtrasISO = n => { const d = new Date(); d.setDate(d.getDate() - n); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+const inicioDia = iso => new Date(iso + "T00:00:00").toISOString();
+const fimDia = iso => new Date(iso + "T23:59:59.999").toISOString();
+const soma = (arr, f) => arr.reduce((t, x) => t + Number(f(x) || 0), 0);
+const msgErro = e => e?.message || e?.error_description || String(e);
+
+const UNIDADES = { kg: { nome: "quilo (kg)", dec: 3 }, g: { nome: "grama (g)", dec: 0 }, L: { nome: "litro (L)", dec: 3 }, ml: { nome: "mililitro (ml)", dec: 0 }, un: { nome: "unidade (un)", dec: 0 } };
+const qtdU = (n, u) => fmtQ(n, UNIDADES[u]?.dec ?? 3) + " " + u;
+
+function toast(msg, tipo = "ok") {
+  const t = document.createElement("div");
+  t.className = "toast" + (tipo === "erro" ? " erro" : "");
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), tipo === "erro" ? 5000 : 2800);
+}
+
+function modal({ titulo, corpo, confirmar = "Confirmar", perigo = false, aoConfirmar, cancelar = "Cancelar" }) {
+  const bg = document.createElement("div");
+  bg.className = "modal-bg";
+  bg.innerHTML = `<form class="modal" role="dialog" aria-modal="true">
+      <h3>${esc(titulo)}</h3>
+      <div class="modal-body">${corpo}</div>
+      <div class="modal-actions">
+        <button type="button" class="btn" data-fechar>${esc(cancelar)}</button>
+        ${aoConfirmar ? `<button type="submit" class="btn ${perigo ? "danger" : "primary"}" data-ok>${esc(confirmar)}</button>` : ""}
+      </div></form>`;
+  document.body.appendChild(bg);
+  const fechar = () => bg.remove();
+  $("[data-fechar]", bg).onclick = fechar;
+  bg.addEventListener("click", e => { if (e.target === bg) fechar(); });
+  $("form", bg).addEventListener("submit", async e => {
+    e.preventDefault();
+    if (!aoConfirmar) return;
+    const ok = $("[data-ok]", bg);
+    ok.disabled = true;
+    try { const r = await aoConfirmar(bg); if (r !== false) fechar(); }
+    catch (err) { toast(msgErro(err), "erro"); }
+    finally { ok.disabled = false; }
+  });
+  setTimeout(() => $(".modal-body input:not([type=checkbox]), .modal-body select", bg)?.focus(), 50);
+  return bg;
+}
+
+function qrDataURL(texto) {
+  const d = document.createElement("div");
+  new QRCode(d, { text: texto, width: 256, height: 256, correctLevel: QRCode.CorrectLevel.M });
+  const c = d.querySelector("canvas");
+  return c ? c.toDataURL("image/png") : d.querySelector("img")?.src;
+}
+
+function etiquetaHTML(p) {
+  const prod = prodPor(p.produto_id) || { nome: "Produto", emoji: "📦" };
+  const fab = new Date(p.created_at || Date.now());
+  const val = prod.validade_dias ? new Date(fab.getTime() + prod.validade_dias * 86400000) : null;
+  return `<div class="etiqueta">
+    <div class="et-titulo">${esc(prod.emoji)} ${esc(prod.nome)}</div>
+    <img src="${qrDataURL(p.id)}" alt="QR ${esc(p.id)}">
+    <div class="et-cod">${esc(p.id)}</div>
+    <div class="et-peso">${gramas(p.peso_kg)}</div>
+    <div class="et-meta">Fab. ${dataCurta(fab)}${val ? `, val. ${dataCurta(val)}` : ""}</div>
+  </div>`;
+}
+
+function imprimir(html) {
+  $("#area-impressao").innerHTML = html;
+  setTimeout(() => window.print(), 150);
+}
+window.addEventListener("afterprint", () => { $("#area-impressao").innerHTML = ""; });
+
+function baixarArquivo(nome, conteudo) {
+  const blob = new Blob(["\ufeff" + conteudo], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = nome;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+function ligarChips(container, aoMudar) {
+  $$(".chip", container).forEach(c => c.onclick = () => {
+    $$(".chip", container).forEach(x => x.setAttribute("aria-pressed", x === c));
+    aoMudar(c.dataset);
+  });
+}
+
+/* =====================================================================
+   Supabase e estado
+   ===================================================================== */
+if (!CFG.SUPABASE_URL || CFG.SUPABASE_URL.includes("SEU-PROJETO")) {
+  document.body.innerHTML = `<div class="login"><div class="painel"><h2>Falta configurar</h2><p>Abra o arquivo <b>config.js</b> e cole a URL e a chave <i>anon public</i> do seu projeto Supabase.</p></div></div>`;
+  throw new Error("config.js não preenchido");
+}
+const sb = supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
+
+const estado = { produtos: [], insumos: [], ficha: [], potes: [], aba: null };
+const prodPor = id => estado.produtos.find(p => p.id === id);
+const insPor = id => estado.insumos.find(i => i.id === id);
+const produtosAtivos = () => estado.produtos.filter(p => p.ativo);
+
+async function q(promessa) {
+  const { data, error } = await promessa;
+  if (error) throw error;
+  return data;
+}
+
+async function carregarBase() {
+  const [prods, ins, ficha, potes] = await Promise.all([
+    q(sb.from("produtos").select("*").order("nome")),
+    q(sb.from("insumos").select("*").order("nome")),
+    q(sb.from("ficha_itens").select("*")),
+    q(sb.from("potes").select("id,produto_id,peso_kg,created_at,lote_id").eq("status", "estoque").order("id")),
+  ]);
+  estado.produtos = prods; estado.insumos = ins; estado.ficha = ficha; estado.potes = potes;
+  atualizarAlertas();
+  preencherSelectsProduto();
+}
+
+function statusInsumo(i) {
+  const e = Number(i.estoque), m = Number(i.estoque_minimo);
+  if (e <= 0) return "zerado";
+  if (m > 0 && e <= m) return "baixo";
+  return "ok";
+}
+function estoqueProduto(prodId) {
+  const potes = estado.potes.filter(p => p.produto_id === prodId);
+  return { potes, kg: soma(potes, p => p.peso_kg) };
+}
+function statusProduto(p) {
+  const { kg: t } = estoqueProduto(p.id);
+  if (t <= 0) return "zerado";
+  if (t < Number(p.estoque_minimo_kg || 0)) return "baixo";
+  return "ok";
+}
+function usadoEm(insumoId) {
+  return estado.ficha.filter(f => f.insumo_id === insumoId).map(f => prodPor(f.produto_id)).filter(Boolean);
+}
+// Quanto ainda dá pra produzir com os insumos atuais
+function capacidade(prod) {
+  const itens = estado.ficha.filter(f => f.produto_id === prod.id);
+  let kgMax = null, limKg = null, potesMax = null, limPote = null;
+  for (const f of itens) {
+    const ins = insPor(f.insumo_id); if (!ins) continue;
+    const disp = Math.max(0, Number(ins.estoque));
+    if (f.base === "pote") {
+      const n = Math.floor(disp / Number(f.qtd));
+      if (potesMax === null || n < potesMax) { potesMax = n; limPote = ins.nome; }
+    } else {
+      const k = disp / (Number(f.qtd) / Number(prod.rendimento_kg));
+      if (kgMax === null || k < kgMax) { kgMax = k; limKg = ins.nome; }
+    }
+  }
+  return { kgMax, limKg, potesMax, limPote, temFicha: itens.length > 0 };
+}
+
+function atualizarAlertas() {
+  const prodAlerta = produtosAtivos().filter(p => statusProduto(p) !== "ok" && Number(p.estoque_minimo_kg) > 0).length;
+  const insAlerta = estado.insumos.filter(i => statusInsumo(i) !== "ok").length;
+  const n = prodAlerta + insAlerta;
+  $("#btn-alertas").classList.toggle("tem", n > 0);
+  $("#alertas-txt").textContent = n ? `⚠ ${n} alerta${n > 1 ? "s" : ""}` : "✓ Tudo em ordem";
+}
+
+function preencherSelectsProduto() {
+  const ops = `<option value="">Todos os produtos</option>` + estado.produtos.map(p => `<option value="${p.id}">${esc(p.emoji)} ${esc(p.nome)}${p.ativo ? "" : " (arquivado)"}</option>`).join("");
+  ["#hist-produto", "#rel-produto", "#perf-produto"].forEach(s => { const el = $(s); const v = el.value; el.innerHTML = ops; el.value = v; });
+}
+
+async function atualizarTudo() {
+  try {
+    await carregarBase();
+    await abrirAba(estado.aba || "estoque");
+  } catch (e) { toast(msgErro(e), "erro"); }
+}
+
+/* =====================================================================
+   Login
+   ===================================================================== */
+$$(".nome-app").forEach(el => el.textContent = NOME_APP);
+document.title = NOME_APP;
+async function iniciar() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) entrarNoApp(); else mostrarLogin();
+  sb.auth.onAuthStateChange(ev => { if (ev === "SIGNED_OUT") mostrarLogin(); });
+}
+function mostrarLogin() { $("#app").classList.add("hidden"); $("#tela-login").classList.remove("hidden"); }
+async function entrarNoApp() {
+  $("#tela-login").classList.add("hidden");
+  $("#app").classList.remove("hidden");
+  estado.aba = localStorage.getItem("aba") || "estoque";
+  await atualizarTudo();
+}
+$("#form-login").addEventListener("submit", async e => {
+  e.preventDefault();
+  const { error } = await sb.auth.signInWithPassword({ email: $("#login-email").value.trim().toLowerCase(), password: $("#login-senha").value });
+  if (error) {
+    const m = String(error.message || "");
+    let txt = `Não foi possível entrar: ${m}`;
+    if (/invalid login credentials/i.test(m)) txt = "E-mail ou senha incorretos. Confira se o usuário foi criado neste mesmo projeto do Supabase.";
+    else if (/not confirmed/i.test(m)) txt = "E-mail ainda não confirmado. No Supabase, recrie o usuário marcando Auto Confirm User.";
+    else if (/disabled/i.test(m)) txt = "Login por e-mail está desligado no Supabase. Ative em Authentication > Sign In / Providers > Email.";
+    else if (/fetch|network/i.test(m)) txt = "Sem conexão com o Supabase. Confira a URL no config.js.";
+    console.error("Erro de login:", error);
+    return toast(txt, "erro");
+  }
+  entrarNoApp();
+});
+$("#btn-sair").onclick = async () => { await fecharCamera(); await sb.auth.signOut(); };
+$("#btn-atualizar").onclick = () => atualizarTudo().then(() => toast("Dados atualizados"));
+$("#btn-alertas").onclick = () => abrirAba("estoque");
+
+/* =====================================================================
+   Abas
+   ===================================================================== */
+const carregadores = {};
+async function abrirAba(nome) {
+  if (estado.aba === "saida" && nome !== "saida") await fecharCamera();
+  if (!carregadores[nome]) nome = "estoque";
+  estado.aba = nome;
+  localStorage.setItem("aba", nome);
+  $$(".aba").forEach(b => b.setAttribute("aria-selected", b.dataset.aba === nome));
+  $$("section[data-tab]").forEach(s => s.classList.toggle("hidden", s.dataset.tab !== nome));
+  try { await carregadores[nome](); } catch (e) { toast(msgErro(e), "erro"); }
+}
+$$(".aba").forEach(b => b.onclick = () => abrirAba(b.dataset.aba));
+
+/* =====================================================================
+   Componente: linha de insumo
+   ===================================================================== */
+function insumoHTML(i, completo) {
+  const st = statusInsumo(i);
+  const e = Number(i.estoque), m = Number(i.estoque_minimo);
+  const ref = m > 0 ? m * 3 : Math.max(e, 1);
+  const pct = Math.max(0, Math.min(100, (e / ref) * 100));
+  const usos = usadoEm(i.id);
+  const rotulo = { ok: "Ok", baixo: "Baixo", zerado: e < 0 ? "Negativo" : "Zerado" }[st];
+  return `<div class="insumo ${st}">
+    <div>
+      <b>${esc(i.nome)}</b> <span class="tag ${i.categoria}">${i.categoria === "embalagem" ? "Embalagem" : "Ingrediente"}</span><span class="tag ${st}">${rotulo}</span>
+      <div class="meta">${brlUnit(i.custo_unit)}/${i.unidade}${m > 0 ? `, mínimo ${qtdU(m, i.unidade)}` : ", sem mínimo definido"}${usos.length ? `. Usado em: ${usos.map(p => esc(p.nome)).join(", ")}` : ""}</div>
+    </div>
+    <div>
+      <div class="qtd-ins ${e < 0 ? "negativo" : ""}">${qtdU(e, i.unidade)}</div>
+      <div class="nivel"><i style="width:${pct}%"></i></div>
+    </div>
+    <div class="acoes">
+      <button class="btn pequeno" data-repor="${i.id}">Repor</button>
+      ${completo ? `<button class="btn pequeno" data-contar="${i.id}">Corrigir contagem</button>
+      <button class="btn pequeno" data-mov="${i.id}">Histórico</button>
+      <button class="btn pequeno" data-editar="${i.id}">Editar</button>
+      <button class="btn pequeno danger" data-excluir="${i.id}" aria-label="Excluir ${esc(i.nome)}">✕</button>` : ""}
+    </div>
+  </div>`;
+}
+function ligarAcoesInsumo(container, aposMudar) {
+  $$("[data-repor]", container).forEach(b => b.onclick = () => reporInsumo(insPor(b.dataset.repor), aposMudar));
+  $$("[data-contar]", container).forEach(b => b.onclick = () => corrigirContagem(insPor(b.dataset.contar), aposMudar));
+  $$("[data-mov]", container).forEach(b => b.onclick = () => historicoInsumo(insPor(b.dataset.mov)));
+  $$("[data-editar]", container).forEach(b => b.onclick = () => formInsumo(insPor(b.dataset.editar), aposMudar));
+  $$("[data-excluir]", container).forEach(b => b.onclick = () => excluirInsumo(insPor(b.dataset.excluir), aposMudar));
+}
+
+/* =====================================================================
+   ESTOQUE (painel)
+   ===================================================================== */
+let estFiltro = "alerta";
+ligarChips($("#est-filtro"), d => { estFiltro = d.f; desenharEstoqueInsumos(); });
+
+function desenharEstoque() {
+  const prods = produtosAtivos();
+  $("#est-produtos").innerHTML = prods.length ? prods.map(p => {
+    const { potes, kg: t } = estoqueProduto(p.id);
+    const st = statusProduto(p);
+    const c = capacidade(p);
+    const rot = { ok: "Ok", baixo: "Abaixo do mínimo", zerado: "Sem estoque" }[st];
+    let capac = "";
+    if (!c.temFicha) capac = `<span>Sem ficha técnica cadastrada.</span>`;
+    else {
+      if (c.kgMax !== null) capac += `<span>Ingredientes dão para ~${kg(c.kgMax)} (limite: ${esc(c.limKg)})</span>`;
+      if (c.potesMax !== null) capac += `<span>Embalagens dão para ${c.potesMax} pote${c.potesMax === 1 ? "" : "s"} (limite: ${esc(c.limPote)})</span>`;
+    }
+    return `<div class="card-prod ${st}">
+      <div class="topo-card"><h3>${esc(p.emoji)} ${esc(p.nome)}</h3><span class="tag ${st}">${rot}</span></div>
+      <div><div class="qtd">${kg(t)}</div><div class="meta sub">${potes.length} pote${potes.length === 1 ? "" : "s"}${Number(p.estoque_minimo_kg) > 0 ? `, mínimo ${kg(p.estoque_minimo_kg)}` : ""}</div></div>
+      <div class="capac">${capac}</div>
+      <div class="linha">
+        ${c.temFicha ? `<button class="btn pequeno primary" data-produzir="${p.id}">Produzir</button>` : `<button class="btn pequeno" data-ficha="${p.id}">Criar ficha</button>`}
+        ${potes.length ? `<button class="btn pequeno" data-baixa="${p.id}">Dar baixa</button><button class="btn pequeno" data-ver-potes="${p.id}">Ver potes</button>` : ""}
+      </div>
+    </div>`;
+  }).join("") : `<div class="vazio">Nenhum produto cadastrado. Comece na aba Produtos e fichas.</div>`;
+  $$("[data-produzir]").forEach(b => b.onclick = () => { localStorage.setItem("prodSel", b.dataset.produzir); abrirAba("producao"); });
+  $$("[data-ficha]").forEach(b => b.onclick = () => { fichaProd = b.dataset.ficha; abrirAba("produtos"); });
+  $$("[data-baixa]").forEach(b => b.onclick = () => darBaixa(b.dataset.baixa));
+  $$("[data-ver-potes]").forEach(b => b.onclick = () => verPotes(b.dataset.verPotes));
+  desenharEstoqueInsumos();
+}
+function desenharEstoqueInsumos() {
+  const alertas = estado.insumos.filter(i => statusInsumo(i) !== "ok");
+  const valor = soma(estado.insumos, i => Math.max(0, i.estoque) * i.custo_unit);
+  $("#est-ins-resumo").textContent = `${estado.insumos.length} insumos, ${alertas.length} em alerta, ${brl(valor)} em estoque`;
+  let lista = estado.insumos;
+  if (estFiltro === "alerta") lista = alertas;
+  else if (estFiltro !== "todos") lista = lista.filter(i => i.categoria === estFiltro);
+  const ordem = { zerado: 0, baixo: 1, ok: 2 };
+  lista = [...lista].sort((a, b) => ordem[statusInsumo(a)] - ordem[statusInsumo(b)] || a.nome.localeCompare(b.nome));
+  $("#est-insumos").innerHTML = lista.length ? lista.map(i => insumoHTML(i, false)).join("")
+    : `<div class="vazio">${estFiltro === "alerta" ? "Nenhum insumo em alerta. Defina o estoque mínimo de cada insumo para receber avisos." : "Nenhum insumo aqui."}</div>`;
+  ligarAcoesInsumo($("#est-insumos"), async () => { await carregarBase(); desenharEstoque(); });
+}
+carregadores.estoque = async () => desenharEstoque();
+
+function verPotes(prodId) {
+  const potes = estado.potes.filter(p => p.produto_id === prodId);
+  const prod = prodPor(prodId);
+  modal({
+    titulo: `${prod.emoji} ${prod.nome}: potes em estoque`,
+    corpo: `<div class="lista">${potes.map(p => `<div class="item"><div class="principal"><b>${esc(p.id)}</b><div class="meta">Fabricado em ${dataCurta(p.created_at)}</div></div><span class="peso">${gramas(p.peso_kg)}</span></div>`).join("")}</div>`,
+    cancelar: "Fechar",
+  });
+}
+
+function darBaixa(prodId) {
+  const potes = estado.potes.filter(p => p.produto_id === prodId);
+  const prod = prodPor(prodId);
+  const bg = modal({
+    titulo: `Dar baixa: ${prod.nome}`,
+    corpo: `<p class="sub">Marque os potes que saíram por perda, amostra, validade ou outro motivo.</p>
+      <label class="item" style="cursor:pointer;background:var(--papel)"><input type="checkbox" id="baixa-todos"><b>Marcar todos (${potes.length})</b></label>
+      <div class="lista">${potes.map(p => `<label class="item" style="cursor:pointer"><input type="checkbox" class="bx" value="${esc(p.id)}"><span class="principal">${esc(p.id)}</span><span class="peso">${gramas(p.peso_kg)}</span></label>`).join("")}</div>
+      <label class="campo">Motivo<input type="text" id="baixa-motivo" placeholder="Ex.: pote aberto, amostra, vencido"></label>`,
+    confirmar: "Dar baixa", perigo: true,
+    aoConfirmar: async bg => {
+      const ids = $$(".bx:checked", bg).map(c => c.value);
+      if (!ids.length) { toast("Marque pelo menos um pote.", "erro"); return false; }
+      const n = await q(sb.rpc("baixar_potes", { p_potes: ids, p_obs: $("#baixa-motivo", bg).value }));
+      toast(`${n} pote${n > 1 ? "s" : ""} com baixa`);
+      await carregarBase(); desenharEstoque();
+    },
+  });
+  $("#baixa-todos", bg).onchange = e => $$(".bx", bg).forEach(c => c.checked = e.target.checked);
+}
+
+/* =====================================================================
+   SAÍDA (scanner)
+   ===================================================================== */
+let leitor = null, lendo = false;
+async function abrirCamera() {
+  if (leitor) return fecharCamera();
+  $("#leitor").classList.remove("hidden");
+  leitor = new Html5Qrcode("leitor");
+  lendo = false;
+  try {
+    await leitor.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 230, height: 230 } }, async texto => {
+      if (lendo) return;
+      lendo = true;
+      if (navigator.vibrate) navigator.vibrate(80);
+      await fecharCamera();
+      buscarPote(texto);
+    });
+    $("#btn-camera").textContent = "Fechar câmera";
+  } catch (e) {
+    toast("Não consegui abrir a câmera. Libere a permissão no navegador (o site precisa estar em https).", "erro");
+    await fecharCamera();
+  }
+}
+async function fecharCamera() {
+  if (leitor) { try { if (leitor.isScanning) await leitor.stop(); leitor.clear(); } catch {} leitor = null; }
+  $("#leitor")?.classList.add("hidden");
+  const b = $("#btn-camera"); if (b) b.textContent = "📷 Escanear QR code do pote";
+}
+$("#btn-camera").onclick = abrirCamera;
+$("#form-codigo").addEventListener("submit", e => { e.preventDefault(); const c = $("#codigo-manual").value.trim(); if (c) buscarPote(c); });
+
+async function lojasConhecidas() {
+  const rows = await q(sb.from("movimentos").select("loja").eq("tipo", "saida").not("loja", "is", null).order("created_at", { ascending: false }).limit(500));
+  return [...new Set(rows.map(r => r.loja))];
+}
+
+async function buscarPote(textoLido) {
+  const alvo = $("#saida-resultado");
+  const codigo = String(textoLido).trim().split(/[\/?=#]/).pop().toUpperCase();
+  alvo.innerHTML = `<div class="painel"><p class="sub">Buscando ${esc(codigo)}…</p></div>`;
+  try {
+    const pote = await q(sb.from("potes").select("*").eq("id", codigo).maybeSingle());
+    if (!pote) { alvo.innerHTML = `<div class="alerta">Pote <b>${esc(codigo)}</b> não encontrado. Confira se a etiqueta foi gerada neste sistema.</div>`; return; }
+    const prod = prodPor(pote.produto_id) || { nome: "Produto", emoji: "📦" };
+    if (pote.status !== "estoque") {
+      const mov = await q(sb.from("movimentos").select("*").eq("pote_id", pote.id).in("tipo", ["saida", "baixa"]).order("created_at", { ascending: false }).limit(1));
+      const m = mov[0];
+      const onde = m ? (m.tipo === "saida" ? `saiu para ${esc(m.loja || "loja não informada")}${m.responsavel ? `, com ${esc(m.responsavel)}` : ""}, em ${dataHora(m.created_at)}` : `recebeu baixa em ${dataHora(m.created_at)}`) : "já saiu";
+      alvo.innerHTML = `<div class="alerta">${esc(prod.emoji)} ${esc(prod.nome)}, pote <b>${esc(pote.id)}</b>: ${onde}. Ele não está mais no estoque.</div>`;
+      return;
+    }
+    const lojas = await lojasConhecidas();
+    alvo.innerHTML = `<form class="painel confirma" id="form-saida">
+        <div class="painel-topo">
+          <div><h3>${esc(prod.emoji)} ${esc(prod.nome)}</h3><p class="sub">${esc(pote.id)}, fabricado em ${dataCurta(pote.created_at)}</p></div>
+          <div class="peso-grande">${gramas(pote.peso_kg)}</div>
+        </div>
+        <div class="grade-2">
+          <label class="campo">Loja de destino<input type="text" id="saida-loja" list="lista-lojas" value="${esc(localStorage.getItem("ultimaLoja") || "")}" required></label>
+          <label class="campo">Responsável<input type="text" id="saida-resp" value="${esc(localStorage.getItem("ultimoResp") || "")}"></label>
+        </div>
+        <datalist id="lista-lojas">${lojas.map(l => `<option value="${esc(l)}">`).join("")}</datalist>
+        <div class="linha" style="margin-top:16px">
+          <button type="button" class="btn" id="btn-cancelar-saida">Cancelar</button>
+          <button type="submit" class="btn primary cresce">Confirmar saída</button>
+        </div>
+      </form>`;
+    $("#btn-cancelar-saida").onclick = () => { alvo.innerHTML = ""; };
+    $("#form-saida").addEventListener("submit", async e => {
+      e.preventDefault();
+      const btn = $("#form-saida button[type=submit]"); btn.disabled = true;
+      const loja = $("#saida-loja").value.trim(), resp = $("#saida-resp").value.trim();
+      try {
+        await q(sb.rpc("registrar_saida", { p_pote: pote.id, p_loja: loja, p_responsavel: resp }));
+        localStorage.setItem("ultimaLoja", loja); localStorage.setItem("ultimoResp", resp);
+        alvo.innerHTML = ""; $("#codigo-manual").value = "";
+        toast(`Saída registrada: ${prod.nome}, ${gramas(pote.peso_kg)} para ${loja}`);
+        await carregarBase(); await carregarUltimasSaidas();
+      } catch (err) { toast(msgErro(err), "erro"); btn.disabled = false; }
+    });
+  } catch (e) { alvo.innerHTML = ""; toast(msgErro(e), "erro"); }
+}
+
+async function carregarUltimasSaidas() {
+  const rows = await q(sb.from("movimentos").select("*").eq("tipo", "saida").order("created_at", { ascending: false }).limit(6));
+  $("#ultimas-saidas").innerHTML = rows.length ? rows.map(m => {
+    const p = prodPor(m.produto_id);
+    return `<div class="item">
+      <div class="principal"><b>${p ? esc(p.emoji + " " + p.nome) : ""}</b><div class="meta">${esc(m.pote_id || "")}, ${esc(m.loja || "sem loja")}${m.responsavel ? `, ${esc(m.responsavel)}` : ""}</div></div>
+      <div class="direita"><span class="peso">${gramas(m.peso_kg)}</span><span class="meta">${dataHora(m.created_at)}</span></div>
+    </div>`;
+  }).join("") : `<div class="vazio">Nenhuma saída registrada ainda.</div>`;
+}
+carregadores.saida = carregarUltimasSaidas;
+
+/* =====================================================================
+   PRODUÇÃO
+   ===================================================================== */
+let prodSelecionado = null;
+const fichaDe = prodId => estado.ficha.filter(f => f.produto_id === prodId);
+
+function carregarProducao() {
+  const ativos = produtosAtivos();
+  const comFicha = ativos.filter(p => fichaDe(p.id).length);
+  if (!ativos.length) {
+    $("#prod-escolha").innerHTML = "";
+    $("#prod-form-corpo").innerHTML = `<div class="vazio">Cadastre um produto e a ficha técnica na aba Produtos e fichas.</div>`;
+    return;
+  }
+  const salvo = localStorage.getItem("prodSel");
+  const valido = id => comFicha.some(p => p.id === id);
+  if (!valido(prodSelecionado)) prodSelecionado = valido(salvo) ? salvo : (comFicha[0]?.id || null);
+
+  $("#prod-escolha").innerHTML = ativos.map(p => {
+    const itens = fichaDe(p.id);
+    const ing = itens.filter(f => f.base === "receita").length, emb = itens.length - ing;
+    return `<button class="ficha-opcao" data-id="${p.id}" aria-pressed="${p.id === prodSelecionado}" ${itens.length ? "" : "disabled"}>
+      <b>${esc(p.emoji)} ${esc(p.nome)}</b>
+      <span>${itens.length ? `Rende ${kg(p.rendimento_kg, 3)} por receita. ${ing} ingrediente${ing === 1 ? "" : "s"}, ${emb} embalage${emb === 1 ? "m" : "ns"}` : "Sem ficha técnica cadastrada"}</span>
+    </button>`;
+  }).join("");
+  $$("#prod-escolha .ficha-opcao").forEach(b => b.onclick = () => {
+    prodSelecionado = b.dataset.id;
+    localStorage.setItem("prodSel", prodSelecionado);
+    $$("#prod-escolha .ficha-opcao").forEach(x => x.setAttribute("aria-pressed", x === b));
+    $("#lote-etiquetas").innerHTML = ""; $("#lote-form").classList.remove("hidden");
+    desenharFormProducao();
+  });
+  if (!$("#lote-etiquetas").innerHTML) desenharFormProducao();
+}
+carregadores.producao = async () => carregarProducao();
+
+function desenharFormProducao() {
+  const p = prodPor(prodSelecionado);
+  if (!p) {
+    $("#prod-form-corpo").innerHTML = `<div class="vazio" style="margin-top:16px">Nenhum produto tem ficha técnica ainda. Sem ficha não dá para descontar os insumos.<br><br><button class="btn primary" id="btn-ir-fichas">Criar ficha técnica</button></div>`;
+    $("#btn-ir-fichas").onclick = () => abrirAba("produtos");
+    return;
+  }
+  const itens = fichaDe(p.id).map(f => ({ ...f, ins: insPor(f.insumo_id) })).filter(f => f.ins)
+    .sort((a, b) => (a.base === b.base ? a.ins.nome.localeCompare(b.ins.nome) : a.base === "receita" ? -1 : 1));
+  $("#prod-form-corpo").innerHTML = `
+    <div class="tabela-wrap" style="margin-top:16px">
+      <table>
+        <thead><tr><th>Insumo da ficha</th><th>Gasto</th><th class="num">Quantidade</th><th class="num">Em estoque</th></tr></thead>
+        <tbody>${itens.map(f => `<tr>
+          <td>${esc(f.ins.nome)}</td>
+          <td class="sub">${f.base === "pote" ? "por pote" : "por receita"}</td>
+          <td class="num">${qtdU(f.qtd, f.ins.unidade)}</td>
+          <td class="num ${Number(f.ins.estoque) <= 0 ? "negativo" : ""}">${qtdU(f.ins.estoque, f.ins.unidade)}</td></tr>`).join("")}</tbody>
+      </table>
+    </div>
+    <div class="passo">2. Quanto você produziu</div>
+    <div class="grade-3">
+      <label class="campo">Receitas feitas<input type="text" id="lote-receitas" inputmode="decimal" value="1"></label>
+      <label class="campo">Quantidade de potes<input type="number" id="lote-qtd" inputmode="numeric" min="1" max="300" placeholder="Ex.: 20"></label>
+      <label class="campo">Peso por pote, em kg<input type="text" id="lote-padrao" inputmode="decimal" placeholder="Ex.: 0,5" value="${p.peso_padrao_kg ? fmtQ(p.peso_padrao_kg) : ""}"></label>
+    </div>
+    <p class="sub" style="margin-top:6px">Receitas feitas é quantas vezes você fez a ficha (pode ser 0,5 ou 1,5). Os ingredientes são descontados por esse número, e as embalagens pela quantidade de potes.</p>
+    <p class="sub" id="lote-previa-receita" style="margin-top:6px"></p>
+    <button id="btn-pesos" class="btn escuro" style="margin-top:14px">Pesar os potes</button>
+    <div id="lote-pesos"></div>`;
+  const previa = () => {
+    const r = num($("#lote-receitas").value);
+    $("#lote-previa-receita").textContent = r && r > 0
+      ? `${fmtQ(r)} receita${r === 1 ? "" : "s"} devem render cerca de ${kg(r * p.rendimento_kg, 3)}${p.peso_padrao_kg ? `, uns ${Math.floor((r * p.rendimento_kg) / p.peso_padrao_kg)} potes de ${gramas(p.peso_padrao_kg)}` : ""}.`
+      : "";
+    if ($("#resumo-lote")) atualizarResumoLote();
+  };
+  $("#lote-receitas").oninput = previa;
+  previa();
+  $("#btn-pesos").onclick = montarPesos;
+}
+
+function consumoPrevisto(prod, receitas, nPotes) {
+  return fichaDe(prod.id).map(f => {
+    const ins = insPor(f.insumo_id) || { nome: "?", unidade: "", estoque: 0, custo_unit: 0 };
+    const qtd = f.base === "pote" ? Number(f.qtd) * nPotes : Number(f.qtd) * receitas;
+    return { ins, qtd, custo: qtd * Number(ins.custo_unit), falta: qtd > Number(ins.estoque) };
+  });
+}
+
+function montarPesos() {
+  const r = num($("#lote-receitas").value);
+  if (!r || r <= 0) return toast("Informe quantas receitas você fez.", "erro");
+  const n = parseInt($("#lote-qtd").value, 10);
+  if (!n || n < 1) return toast("Informe quantos potes foram produzidos.", "erro");
+  if (n > 300) return toast("Máximo de 300 potes por lote.", "erro");
+  const padrao = num($("#lote-padrao").value);
+  $("#lote-pesos").innerHTML = `
+    <div class="passo">3. Peso de cada pote</div>
+    <p class="sub">O peso padrão já está preenchido. Ajuste só os potes que ficaram diferentes.</p>
+    <div class="pesos">${Array.from({ length: n }, (_, i) => `
+      <label><span>#${i + 1}</span><input type="text" inputmode="decimal" placeholder="kg" value="${padrao ? fmtQ(padrao) : ""}" aria-label="Peso do pote ${i + 1} em kg"></label>`).join("")}
+    </div>
+    <div class="resumo-lote" id="resumo-lote"></div>
+    <div class="linha" style="margin-top:14px">
+      <button class="btn" id="btn-limpar-lote" type="button">Limpar</button>
+      <button class="btn primary cresce" id="btn-gerar" type="button">Gerar etiquetas e dar entrada</button>
+    </div>`;
+  $$("#lote-pesos input").forEach((inp, i, todos) => {
+    inp.addEventListener("input", atualizarResumoLote);
+    inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); (todos[i + 1] || $("#btn-gerar")).focus(); } });
+  });
+  $("#lote-qtd").onchange = () => { if ($("#resumo-lote")) montarPesos(); };
+  $("#btn-limpar-lote").onclick = () => { $("#lote-pesos").innerHTML = ""; };
+  $("#btn-gerar").onclick = gerarLote;
+  atualizarResumoLote();
+  (padrao ? $("#btn-gerar") : $("#lote-pesos input"))?.focus();
+}
+
+function atualizarResumoLote() {
+  const prod = prodPor(prodSelecionado);
+  const receitas = num($("#lote-receitas").value) || 0;
+  const pesos = $$("#lote-pesos input").map(i => num(i.value));
+  const validos = pesos.filter(p => p && p > 0);
+  const total = soma(validos, p => p);
+  const esperado = receitas * Number(prod.rendimento_kg);
+  const consumo = consumoPrevisto(prod, receitas, pesos.length);
+  const custo = soma(consumo, c => c.custo);
+  const faltam = pesos.length - validos.length;
+  const aproveit = esperado ? (total / esperado) * 100 : 0;
+  $("#resumo-lote").innerHTML = `
+    <div class="total">${esc(prod.emoji)} ${kg(total, 3)} em ${pesos.length} pote${pesos.length > 1 ? "s" : ""}</div>
+    <div>Pela ficha, ${fmtQ(receitas)} receita${receitas === 1 ? "" : "s"} rende${receitas === 1 ? "" : "m"} ${kg(esperado, 3)}. ${total && esperado ? `Você pesou <b>${fmt(aproveit, 0)}%</b> disso.` : ""}</div>
+    <div>Vai descontar: ${consumo.map(c => `<span class="${c.falta ? "negativo" : ""}">${esc(c.ins.nome)} ${qtdU(c.qtd, c.ins.unidade)}</span>`).join(", ")}</div>
+    <div>Custo do lote: <b>${brl(custo)}</b>${total ? `, ${brl(custo / total)} por kg pesado` : ""}</div>
+    ${consumo.some(c => c.falta) ? `<div class="negativo">Atenção: algum insumo vai ficar negativo. Confira o estoque na aba Insumos.</div>` : ""}
+    ${total && esperado && (aproveit > 115 || aproveit < 60) ? `<div class="negativo">O peso ficou muito longe do esperado pela ficha. Confira o número de receitas ou os pesos.</div>` : ""}`;
+  const bloqueado = faltam > 0 || !validos.length || !receitas;
+  $("#btn-gerar").disabled = bloqueado;
+  $("#btn-gerar").textContent = !receitas ? "Informe as receitas feitas" : faltam > 0 ? `Falta pesar ${faltam} pote${faltam > 1 ? "s" : ""}` : "Gerar etiquetas e dar entrada";
+}
+
+async function gerarLote() {
+  const receitas = num($("#lote-receitas").value);
+  const pesos = $$("#lote-pesos input").map(i => num(i.value));
+  if (!receitas || receitas <= 0) return toast("Informe quantas receitas você fez.", "erro");
+  if (pesos.some(p => !p || p <= 0)) return toast("Informe o peso de todos os potes.", "erro");
+  if (pesos.some(p => p > 20)) return toast("Algum pote está com mais de 20 kg. Confira se digitou em kg (ex.: 0,5).", "erro");
+  const btn = $("#btn-gerar"); btn.disabled = true; btn.textContent = "Gerando…";
+  try {
+    const loteId = await q(sb.rpc("gerar_lote", { p_produto: prodSelecionado, p_pesos: pesos, p_receitas: receitas }));
+    const potes = await q(sb.from("potes").select("*").eq("lote_id", loteId).order("id"));
+    await carregarBase();
+    mostrarEtiquetas(loteId, potes);
+    toast(`Lote ${loteId} criado com ${potes.length} potes`);
+  } catch (e) {
+    toast(msgErro(e), "erro");
+    btn.disabled = false; btn.textContent = "Gerar etiquetas e dar entrada";
+  }
+}
+
+function mostrarEtiquetas(loteId, potes) {
+  $("#lote-form").classList.add("hidden");
+  const prod = prodPor(potes[0]?.produto_id);
+  const html = potes.map(etiquetaHTML).join("");
+  $("#lote-etiquetas").innerHTML = `
+    <div class="painel">
+      <div class="painel-topo">
+        <div><h2>Etiquetas do lote</h2><p class="sub">${esc(prod?.nome || "")}, ${potes.length} pote${potes.length > 1 ? "s" : ""}, ${kg(soma(potes, p => p.peso_kg), 3)}, lote ${esc(loteId)}</p></div>
+        <div class="linha">
+          <button class="btn primary" id="btn-imp-etq">Imprimir ou salvar PDF</button>
+          <button class="btn" id="btn-novo-lote">Nova produção</button>
+        </div>
+      </div>
+      <div class="etiquetas">${html}</div>
+      <p class="sub" style="margin-top:12px">Para salvar em PDF, escolha "Salvar como PDF" na janela de impressão.</p>
+    </div>`;
+  $("#btn-imp-etq").onclick = () => imprimir(`<div class="etiquetas">${html}</div>`);
+  $("#btn-novo-lote").onclick = () => { $("#lote-etiquetas").innerHTML = ""; $("#lote-form").classList.remove("hidden"); desenharFormProducao(); };
+}
+
+/* =====================================================================
+   HISTÓRICO
+   ===================================================================== */
+let histTipo = "todos";
+ligarChips($("#hist-tipos"), d => { histTipo = d.tipo; carregarHistorico(); });
+["#hist-de", "#hist-ate", "#hist-produto"].forEach(s => $(s).onchange = carregarHistorico);
+
+async function carregarHistorico() {
+  let c = sb.from("movimentos").select("*").order("created_at", { ascending: false }).limit(1000);
+  const de = $("#hist-de").value, ate = $("#hist-ate").value, prod = $("#hist-produto").value;
+  if (de) c = c.gte("created_at", inicioDia(de));
+  if (ate) c = c.lte("created_at", fimDia(ate));
+  if (prod) c = c.eq("produto_id", prod);
+  if (histTipo !== "todos") c = c.eq("tipo", histTipo);
+  const rows = await q(c);
+
+  const itens = [], lotes = new Map();
+  for (const m of rows) {
+    if (m.tipo === "entrada") {
+      if (!lotes.has(m.lote_id)) { const g = { tipo: "lote", lote_id: m.lote_id, produto_id: m.produto_id, potes: 0, kg: 0, created_at: m.created_at }; lotes.set(m.lote_id, g); itens.push(g); }
+      const g = lotes.get(m.lote_id); g.potes++; g.kg += Number(m.peso_kg);
+    } else itens.push(m);
+  }
+  $("#hist-contagem").textContent = `${rows.length} movimento${rows.length === 1 ? "" : "s"}${rows.length === 1000 ? " (mostrando os 1000 mais recentes)" : ""}`;
+  const nomeProd = id => { const p = prodPor(id); return p ? `${esc(p.emoji)} ${esc(p.nome)}` : "Produto removido"; };
+  $("#hist-lista").innerHTML = itens.length ? itens.map(m => {
+    if (m.tipo === "lote") return `
+      <div class="item">
+        <div class="principal"><span class="tag entrada">Produção</span><b>${nomeProd(m.produto_id)}</b><div class="meta">Lote ${esc(m.lote_id)}, ${m.potes} pote${m.potes > 1 ? "s" : ""}</div></div>
+        <div class="direita"><span class="peso">${kg(m.kg, 3)}</span><span class="meta">${dataHora(m.created_at)}</span>
+          <button class="btn pequeno" data-etiquetas="${esc(m.lote_id)}">Etiquetas</button></div>
+      </div>`;
+    const tag = m.tipo === "saida" ? `<span class="tag saida">Saída</span>` : `<span class="tag baixa">Baixa</span>`;
+    const detalhe = m.tipo === "saida" ? `${esc(m.loja || "sem loja")}${m.responsavel ? `, ${esc(m.responsavel)}` : ""}` : esc(m.observacao || "sem motivo");
+    return `
+      <div class="item">
+        <div class="principal">${tag}<b>${nomeProd(m.produto_id)}</b><div class="meta">${esc(m.pote_id || "")}, ${detalhe}</div></div>
+        <div class="direita"><span class="peso">${gramas(m.peso_kg)}</span><span class="meta">${dataHora(m.created_at)}</span>
+          ${m.tipo === "saida" ? `<button class="btn pequeno" data-desfazer="${m.id}">Desfazer</button>` : ""}</div>
+      </div>`;
+  }).join("") : `<div class="vazio">Nenhum movimento nesse filtro.</div>`;
+
+  $$("[data-etiquetas]").forEach(b => b.onclick = async () => {
+    const potes = await q(sb.from("potes").select("*").eq("lote_id", b.dataset.etiquetas).order("id"));
+    imprimir(`<div class="etiquetas">${potes.map(etiquetaHTML).join("")}</div>`);
+  });
+  $$("[data-desfazer]").forEach(b => b.onclick = () => modal({
+    titulo: "Desfazer saída?",
+    corpo: `<p>O pote volta para o estoque e o registro de saída é apagado.</p>`,
+    confirmar: "Desfazer saída", perigo: true,
+    aoConfirmar: async () => {
+      await q(sb.rpc("desfazer_saida", { p_movimento: Number(b.dataset.desfazer) }));
+      toast("Saída desfeita, pote de volta ao estoque");
+      await carregarBase(); await carregarHistorico();
+    },
+  }));
+}
+carregadores.historico = carregarHistorico;
+
+/* =====================================================================
+   RELATÓRIO
+   ===================================================================== */
+let relDados = null;
+["#rel-de", "#rel-ate", "#rel-produto"].forEach(s => $(s).onchange = carregarRelatorio);
+
+async function carregarRelatorio() {
+  if (!$("#rel-de").value) $("#rel-de").value = diasAtrasISO(30);
+  if (!$("#rel-ate").value) $("#rel-ate").value = hojeISO();
+  const de = inicioDia($("#rel-de").value), ate = fimDia($("#rel-ate").value), prodF = $("#rel-produto").value;
+
+  let cm = sb.from("movimentos").select("*").gte("created_at", de).lte("created_at", ate).order("created_at");
+  let cl = sb.from("lotes").select("*").gte("created_at", de).lte("created_at", ate);
+  if (prodF) { cm = cm.eq("produto_id", prodF); cl = cl.eq("produto_id", prodF); }
+  const [movs, lotes, movIns] = await Promise.all([q(cm), q(cl),
+    q(sb.from("movimentos_insumos").select("*").gte("created_at", de).lte("created_at", ate))]);
+  relDados = { movs };
+
+  const idsLotes = new Set(lotes.map(l => l.id));
+  const consumo = movIns.filter(m => m.tipo === "consumo" && (!prodF || idsLotes.has(m.lote_id)));
+  const compras = movIns.filter(m => m.tipo === "reposicao");
+
+  const entradas = movs.filter(m => m.tipo === "entrada"), saidas = movs.filter(m => m.tipo === "saida"), baixas = movs.filter(m => m.tipo === "baixa");
+  const produzido = soma(entradas, m => m.peso_kg);
+  const custo = soma(lotes, l => l.custo_total);
+  const potesEst = prodF ? estado.potes.filter(p => p.produto_id === prodF) : estado.potes;
+
+  const porLoja = {};
+  saidas.forEach(m => { const k = m.loja || "Sem loja"; porLoja[k] ??= { kg: 0, potes: 0 }; porLoja[k].kg += Number(m.peso_kg); porLoja[k].potes++; });
+  const lojas = Object.entries(porLoja).sort((a, b) => b[1].kg - a[1].kg);
+  const maxLoja = lojas[0]?.[1].kg || 1;
+
+  const consPor = {};
+  consumo.forEach(m => { const k = m.insumo_nome; consPor[k] ??= { qtd: 0, custo: 0, un: m.unidade }; consPor[k].qtd += -Number(m.qtd); consPor[k].custo += -Number(m.qtd) * Number(m.custo_unit || 0); });
+  const consLista = Object.entries(consPor).sort((a, b) => b[1].custo - a[1].custo);
+
+  const porProduto = !prodF ? produtosAtivos().map(p => ({
+    p, prod: soma(entradas.filter(m => m.produto_id === p.id), m => m.peso_kg), sai: soma(saidas.filter(m => m.produto_id === p.id), m => m.peso_kg), est: estoqueProduto(p.id).kg,
+  })).filter(x => x.prod || x.sai || x.est) : [];
+
+  $("#rel-conteudo").innerHTML = `
+    <div class="numeros">
+      <div class="numero verde"><span>Produzido</span><strong>${kg(produzido)}</strong><em>${entradas.length} potes</em></div>
+      <div class="numero laranja"><span>Saídas para lojas</span><strong>${kg(soma(saidas, m => m.peso_kg))}</strong><em>${saidas.length} potes</em></div>
+      <div class="numero carne"><span>Baixas</span><strong>${kg(soma(baixas, m => m.peso_kg))}</strong><em>${baixas.length} potes</em></div>
+      <div class="numero"><span>Estoque atual</span><strong>${kg(soma(potesEst, p => p.peso_kg))}</strong><em>${potesEst.length} potes</em></div>
+      <div class="numero"><span>Custo de produção</span><strong>${brl(custo)}</strong><em>${produzido ? brl(custo / produzido) + " por kg" : "–"}</em></div>
+      <div class="numero"><span>Compras de insumos</span><strong>${brl(soma(compras, m => m.qtd * (m.custo_unit || 0)))}</strong><em>todos os produtos</em></div>
+    </div>
+    ${porProduto.length ? `<div class="painel" style="margin-top:14px"><h3>Por produto</h3><div class="tabela-wrap" style="margin-top:10px"><table>
+      <thead><tr><th>Produto</th><th class="num">Produzido</th><th class="num">Saídas</th><th class="num">Estoque atual</th></tr></thead>
+      <tbody>${porProduto.map(x => `<tr><td>${esc(x.p.emoji)} ${esc(x.p.nome)}</td><td class="num">${kg(x.prod)}</td><td class="num">${kg(x.sai)}</td><td class="num">${kg(x.est)}</td></tr>`).join("")}</tbody></table></div></div>` : ""}
+    <div class="painel" style="margin-top:14px">
+      <h3>Saídas por loja</h3>
+      <div class="lista" style="margin-top:12px">
+        ${lojas.length ? lojas.map(([nome, v]) => `
+          <div class="barra"><div class="barra-topo"><b>📍 ${esc(nome)}</b><span>${kg(v.kg)}, ${v.potes} pote${v.potes > 1 ? "s" : ""}</span></div>
+          <div class="barra-fundo"><i style="width:${(v.kg / maxLoja) * 100}%"></i></div></div>`).join("") : `<div class="vazio">Nenhuma saída no período.</div>`}
+      </div>
+    </div>
+    <div class="painel" style="margin-top:14px">
+      <h3>Insumos gastos na produção</h3>
+      ${consLista.length ? `<div class="tabela-wrap" style="margin-top:10px"><table>
+        <thead><tr><th>Insumo</th><th class="num">Quantidade</th><th class="num">Custo</th></tr></thead>
+        <tbody>${consLista.map(([n, v]) => `<tr><td>${esc(n)}</td><td class="num">${qtdU(v.qtd, v.un)}</td><td class="num">${brl(v.custo)}</td></tr>`).join("")}</tbody>
+        <tfoot><tr><td>Total</td><td></td><td class="num">${brl(soma(consLista, x => x[1].custo))}</td></tr></tfoot></table></div>`
+        : `<div class="vazio" style="margin-top:10px">Nenhum insumo gasto no período.</div>`}
+    </div>`;
+}
+carregadores.relatorio = carregarRelatorio;
+
+$("#btn-csv").onclick = () => {
+  if (!relDados) return;
+  const linhas = [["Data", "Tipo", "Produto", "Pote", "Lote", "Peso (kg)", "Loja", "Responsável", "Observação"]];
+  relDados.movs.forEach(m => linhas.push([dataHora(m.created_at), m.tipo, prodPor(m.produto_id)?.nome || "", m.pote_id || "", m.lote_id || "", fmt(m.peso_kg, 3), m.loja || "", m.responsavel || "", m.observacao || ""]));
+  const csv = linhas.map(l => l.map(c => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
+  baixarArquivo(`movimentos_${$("#rel-de").value}_a_${$("#rel-ate").value}.csv`, csv);
+};
+$("#btn-imprimir-rel").onclick = () => {
+  const p = prodPor($("#rel-produto").value);
+  imprimir(`<h2>Relatório${p ? `: ${esc(p.nome)}` : ""}, de ${dataCurta($("#rel-de").value + "T12:00")} a ${dataCurta($("#rel-ate").value + "T12:00")}</h2><br>${$("#rel-conteudo").innerHTML}`);
+};
+
+/* =====================================================================
+   PERFORMANCE
+   ===================================================================== */
+let grafBarras = null;
+$("#perf-produto").onchange = () => carregarPerformance();
+async function carregarPerformance() {
+  const agora = new Date(), meses = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(agora.getFullYear(), agora.getMonth() - i, 1);
+    meses.push({ chave: `${d.getFullYear()}-${d.getMonth()}`, rotulo: d.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }).replace(". de ", "/").replace(" de ", "/").replace(".", ""), prod: 0, cons: 0 });
+  }
+  let c = sb.from("movimentos").select("tipo,peso_kg,loja,created_at").gte("created_at", new Date(agora.getFullYear(), agora.getMonth() - 5, 1).toISOString()).in("tipo", ["entrada", "saida"]);
+  if ($("#perf-produto").value) c = c.eq("produto_id", $("#perf-produto").value);
+  const movs = await q(c);
+  const porLoja = {};
+  movs.forEach(m => {
+    const d = new Date(m.created_at);
+    const mes = meses.find(x => x.chave === `${d.getFullYear()}-${d.getMonth()}`);
+    if (!mes) return;
+    if (m.tipo === "entrada") mes.prod += Number(m.peso_kg);
+    else { mes.cons += Number(m.peso_kg); const k = m.loja || "Sem loja"; porLoja[k] = (porLoja[k] || 0) + Number(m.peso_kg); }
+  });
+  const media = soma(meses, m => m.cons) / meses.length;
+  const pico = meses.reduce((a, b) => (b.cons > a.cons ? b : a), meses[0]);
+  const previsao = soma(meses.slice(-3), m => m.cons) / 3;
+  $("#perf-numeros").innerHTML = `
+    <div class="numero"><span>Média de saídas por mês</span><strong>${kg(media)}</strong></div>
+    <div class="numero laranja"><span>Mês com mais saídas</span><strong>${pico.cons ? esc(pico.rotulo) : "–"}</strong></div>
+    <div class="numero verde"><span>Previsão para o próximo mês</span><strong>${kg(previsao)}</strong><em>média dos últimos 3 meses</em></div>
+    <div class="numero"><span>Média de produção por mês</span><strong>${kg(soma(meses, m => m.prod) / meses.length)}</strong></div>`;
+  grafBarras?.destroy();
+  grafBarras = new Chart($("#graf-barras"), {
+    type: "bar",
+    data: { labels: meses.map(m => m.rotulo), datasets: [
+      { label: "Produção", data: meses.map(m => +m.prod.toFixed(3)), backgroundColor: "#2C7449", borderRadius: 4 },
+      { label: "Saídas", data: meses.map(m => +m.cons.toFixed(3)), backgroundColor: "#B9520F", borderRadius: 4 },
+    ] },
+    options: { responsive: true, maintainAspectRatio: false,
+      plugins: { tooltip: { callbacks: { label: c => `${c.dataset.label}: ${kg(c.raw)}` } } },
+      scales: { y: { beginAtZero: true, ticks: { callback: v => fmt(v, 1) } } } },
+  });
+  const lojas = Object.entries(porLoja).sort((a, b) => b[1] - a[1]);
+  const max = lojas[0]?.[1] || 1;
+  $("#perf-lojas").innerHTML = lojas.length ? lojas.map(([n, v]) => `
+    <div class="barra"><div class="barra-topo"><b>📍 ${esc(n)}</b><span>${kg(v)}</span></div><div class="barra-fundo"><i style="width:${(v / max) * 100}%"></i></div></div>`).join("")
+    : `<div class="vazio">Sem saídas nos últimos 6 meses.</div>`;
+}
+carregadores.performance = carregarPerformance;
+
+/* =====================================================================
+   PRODUTOS E FICHAS
+   ===================================================================== */
+let fichaProd = null, fichaRascunho = [];
+
+function carregarProdutos() {
+  if (!estado.produtos.length) {
+    $("#ficha-produtos").innerHTML = "";
+    $("#ficha-corpo").innerHTML = `<div class="vazio">Nenhum produto ainda. Clique em "+ Novo produto" para começar.</div>`;
+    return;
+  }
+  if (!prodPor(fichaProd)) fichaProd = (produtosAtivos()[0] || estado.produtos[0]).id;
+  $("#ficha-produtos").innerHTML = estado.produtos.map(p => `<button class="chip ${p.ativo ? "" : "apagado"}" data-id="${p.id}" aria-pressed="${p.id === fichaProd}">${esc(p.emoji)} ${esc(p.nome)}${p.ativo ? "" : " (arquivado)"}</button>`).join("");
+  ligarChips($("#ficha-produtos"), d => { fichaProd = d.id; abrirFicha(); });
+  abrirFicha();
+}
+carregadores.produtos = async () => carregarProdutos();
+
+function abrirFicha() {
+  fichaRascunho = estado.ficha.filter(f => f.produto_id === fichaProd).map(f => ({ insumo_id: f.insumo_id, qtd: Number(f.qtd), base: f.base }));
+  desenharFicha();
+}
+
+function custosFicha(prod, itens) {
+  let receita = 0, pote = 0;
+  itens.forEach(f => { const c = f.qtd * Number(insPor(f.insumo_id)?.custo_unit || 0); if (f.base === "pote") pote += c; else receita += c; });
+  const porKg = receita / Number(prod.rendimento_kg);
+  const potePadrao = prod.peso_padrao_kg ? porKg * Number(prod.peso_padrao_kg) + pote : null;
+  return { receita, pote, porKg, potePadrao };
+}
+
+function desenharFicha() {
+  const p = prodPor(fichaProd);
+  const c = custosFicha(p, fichaRascunho);
+  const usados = new Set(fichaRascunho.map(f => f.insumo_id));
+  const livres = estado.insumos.filter(i => !usados.has(i.id));
+  const linha = (f, idx) => {
+    const ins = insPor(f.insumo_id) || { nome: "?", unidade: "", custo_unit: 0 };
+    return `<tr>
+      <td><b>${esc(ins.nome)}</b><div class="meta sub">${brlUnit(ins.custo_unit)}/${ins.unidade}</div></td>
+      <td><select data-base="${idx}"><option value="receita" ${f.base === "receita" ? "selected" : ""}>Por receita</option><option value="pote" ${f.base === "pote" ? "selected" : ""}>Por pote</option></select></td>
+      <td class="num"><input type="text" inputmode="decimal" value="${fmtQ(f.qtd, 4)}" data-qtd="${idx}" aria-label="Quantidade de ${esc(ins.nome)}"> ${ins.unidade}</td>
+      <td class="num">${brl(f.qtd * ins.custo_unit)}</td>
+      <td class="num"><button class="btn pequeno danger" data-remover="${idx}" aria-label="Remover ${esc(ins.nome)}">✕</button></td>
+    </tr>`;
+  };
+  const rec = fichaRascunho.map((f, i) => [f, i]).filter(([f]) => f.base === "receita");
+  const pot = fichaRascunho.map((f, i) => [f, i]).filter(([f]) => f.base === "pote");
+
+  $("#ficha-corpo").innerHTML = `
+    <div class="painel">
+      <div class="painel-topo">
+        <div><h2>${esc(p.emoji)} ${esc(p.nome)}</h2>
+          <p class="sub">Sigla nas etiquetas: <b>${esc(p.sigla)}</b>. Receita rende ${kg(p.rendimento_kg, 3)}${p.peso_padrao_kg ? `, pote padrão de ${gramas(p.peso_padrao_kg)}` : ""}${p.validade_dias ? `, validade de ${p.validade_dias} dias` : ""}${Number(p.estoque_minimo_kg) ? `, mínimo de ${kg(p.estoque_minimo_kg)}` : ""}.</p></div>
+        <div class="linha">
+          <button class="btn pequeno" id="btn-editar-prod">Editar dados</button>
+          <button class="btn pequeno" id="btn-imprimir-ficha">Imprimir</button>
+          <button class="btn pequeno" id="btn-arquivar-prod">${p.ativo ? "Arquivar" : "Reativar"}</button>
+          <button class="btn pequeno danger" id="btn-excluir-prod">Excluir</button>
+        </div>
+      </div>
+      <div class="numeros">
+        <div class="numero carne"><span>Custo por kg (ingredientes)</span><strong>${brl(c.porKg)}</strong></div>
+        <div class="numero"><span>Embalagem por pote</span><strong>${brl(c.pote)}</strong></div>
+        <div class="numero verde"><span>Custo de um pote padrão</span><strong>${c.potePadrao !== null ? brl(c.potePadrao) : "–"}</strong>${c.potePadrao === null ? `<em>defina o peso padrão</em>` : ""}</div>
+      </div>
+      <div class="tabela-wrap" style="margin-top:18px">
+        <table>
+          <thead><tr><th>Insumo</th><th>Gasto</th><th class="num">Quantidade</th><th class="num">Custo</th><th></th></tr></thead>
+          <tbody>
+            <tr><td colspan="5" class="sub"><b>Por receita</b>: quantidade para uma receita que rende ${kg(p.rendimento_kg, 3)}. É ajustado conforme os kg produzidos.</td></tr>
+            ${rec.map(([f, i]) => linha(f, i)).join("") || `<tr><td colspan="5" class="sub">Nenhum ingrediente.</td></tr>`}
+            <tr><td colspan="5" class="sub"><b>Por pote</b>: quantidade gasta em cada pote, como pote, tampa e etiqueta.</td></tr>
+            ${pot.map(([f, i]) => linha(f, i)).join("") || `<tr><td colspan="5" class="sub">Nenhuma embalagem.</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+      <div class="linha" style="margin-top:16px">
+        <label class="campo cresce">Adicionar insumo<select id="ficha-add-ins">${livres.length ? `<option value="">Selecione…</option>` + livres.map(i => `<option value="${i.id}">${esc(i.nome)} (${i.unidade})</option>`).join("") : `<option value="">Todos os insumos já estão na ficha</option>`}</select></label>
+        <label class="campo" style="width:150px">Gasto<select id="ficha-add-base"><option value="receita">Por receita</option><option value="pote">Por pote</option></select></label>
+        <label class="campo" style="width:120px">Quantidade<input type="text" id="ficha-add-qtd" inputmode="decimal" placeholder="0"></label>
+        <button class="btn" id="btn-ficha-add">Adicionar</button>
+      </div>
+      <p class="sub" style="margin-top:8px">Não achou o insumo? Cadastre na aba Insumos, com a unidade certa (kg, g, L, ml ou un).</p>
+      <button class="btn primary grande" id="btn-salvar-ficha" style="margin-top:16px">Salvar ficha técnica</button>
+    </div>`;
+
+  $$("[data-qtd]").forEach(inp => inp.onchange = () => { const v = num(inp.value); if (v && v > 0) fichaRascunho[inp.dataset.qtd].qtd = v; desenharFicha(); });
+  $$("[data-base]").forEach(s => s.onchange = () => { fichaRascunho[s.dataset.base].base = s.value; desenharFicha(); });
+  $$("[data-remover]").forEach(b => b.onclick = () => { fichaRascunho.splice(Number(b.dataset.remover), 1); desenharFicha(); });
+  $("#ficha-add-ins").onchange = () => { const i = insPor($("#ficha-add-ins").value); if (i) $("#ficha-add-base").value = i.categoria === "embalagem" ? "pote" : "receita"; };
+  $("#btn-ficha-add").onclick = () => {
+    const id = $("#ficha-add-ins").value, qtd = num($("#ficha-add-qtd").value);
+    if (!id) return toast("Escolha um insumo.", "erro");
+    if (!qtd || qtd <= 0) return toast("Informe a quantidade.", "erro");
+    fichaRascunho.push({ insumo_id: id, qtd, base: $("#ficha-add-base").value });
+    desenharFicha();
+  };
+  $("#btn-salvar-ficha").onclick = salvarFicha;
+  $("#btn-editar-prod").onclick = () => formProduto(p);
+  $("#btn-arquivar-prod").onclick = async () => {
+    try { await q(sb.from("produtos").update({ ativo: !p.ativo }).eq("id", p.id)); await carregarBase(); carregarProdutos(); toast(p.ativo ? "Produto arquivado" : "Produto reativado"); }
+    catch (e) { toast(msgErro(e), "erro"); }
+  };
+  $("#btn-excluir-prod").onclick = () => modal({
+    titulo: `Excluir ${p.nome}?`,
+    corpo: `<p>Só dá pra excluir produtos que nunca tiveram produção. Se já teve, use Arquivar: ele some das telas de produção, mas o histórico continua.</p>`,
+    confirmar: "Excluir", perigo: true,
+    aoConfirmar: async () => {
+      try { await q(sb.from("produtos").delete().eq("id", p.id)); }
+      catch (e) { throw new Error("Esse produto já tem produção registrada. Use Arquivar."); }
+      fichaProd = null; await carregarBase(); carregarProdutos(); toast("Produto excluído");
+    },
+  });
+  $("#btn-imprimir-ficha").onclick = () => {
+    const t = $("#ficha-corpo table").cloneNode(true);
+    $$("input", t).forEach(i => i.replaceWith(i.value));
+    $$("select", t).forEach(s => s.replaceWith(s.options[s.selectedIndex].text));
+    $$("button", t).forEach(b => b.remove());
+    imprimir(`<h2>Ficha técnica: ${esc(p.nome)}</h2><p>Rendimento da receita: ${kg(p.rendimento_kg, 3)}. Custo por kg: ${brl(c.porKg)}. Embalagem por pote: ${brl(c.pote)}.</p><br>${t.outerHTML}`);
+  };
+}
+
+async function salvarFicha() {
+  try {
+    const ids = fichaRascunho.map(f => f.insumo_id);
+    let del = sb.from("ficha_itens").delete().eq("produto_id", fichaProd);
+    if (ids.length) del = del.not("insumo_id", "in", `(${ids.join(",")})`);
+    await q(del);
+    if (ids.length) await q(sb.from("ficha_itens").upsert(fichaRascunho.map(f => ({ ...f, produto_id: fichaProd })), { onConflict: "produto_id,insumo_id" }));
+    await carregarBase(); abrirFicha(); toast("Ficha técnica salva");
+  } catch (e) { toast(msgErro(e), "erro"); }
+}
+
+function formProduto(p = null) {
+  modal({
+    titulo: p ? `Editar ${p.nome}` : "Novo produto",
+    corpo: `
+      <div class="grade-2" style="grid-template-columns:80px 1fr">
+        <label class="campo">Ícone<input type="text" id="p-emoji" value="${esc(p?.emoji || "📦")}" maxlength="4"></label>
+        <label class="campo">Nome<input type="text" id="p-nome" value="${esc(p?.nome || "")}" required placeholder="Ex.: Farofa de Bacon"></label>
+      </div>
+      <div class="grade-2">
+        <label class="campo">Sigla da etiqueta<input type="text" id="p-sigla" value="${esc(p?.sigla || "")}" maxlength="5" placeholder="Ex.: FB" autocapitalize="characters" required></label>
+        <label class="campo">A receita rende (kg)<input type="text" id="p-rend" inputmode="decimal" value="${p ? fmtQ(p.rendimento_kg) : "1"}" required></label>
+      </div>
+      <div class="grade-3">
+        <label class="campo">Peso padrão do pote (kg)<input type="text" id="p-peso" inputmode="decimal" value="${p?.peso_padrao_kg ? fmtQ(p.peso_padrao_kg) : ""}" placeholder="0,5"></label>
+        <label class="campo">Validade (dias)<input type="number" id="p-val" inputmode="numeric" value="${p?.validade_dias || ""}" placeholder="30"></label>
+        <label class="campo">Estoque mínimo (kg)<input type="text" id="p-min" inputmode="decimal" value="${p ? fmtQ(p.estoque_minimo_kg) : ""}" placeholder="2"></label>
+      </div>
+      <p class="sub">A sigla vai no começo do código de cada pote (ex.: FB-260922-1430-001), então precisa ser única. Use de 1 a 5 letras ou números.</p>`,
+    confirmar: "Salvar",
+    aoConfirmar: async bg => {
+      const dados = {
+        emoji: $("#p-emoji", bg).value.trim() || "📦",
+        nome: $("#p-nome", bg).value.trim(),
+        sigla: $("#p-sigla", bg).value.trim().toUpperCase().replace(/[^A-Z0-9]/g, ""),
+        rendimento_kg: num($("#p-rend", bg).value),
+        peso_padrao_kg: num($("#p-peso", bg).value),
+        validade_dias: parseInt($("#p-val", bg).value, 10) || null,
+        estoque_minimo_kg: num($("#p-min", bg).value) || 0,
+      };
+      if (!dados.nome) throw new Error("Informe o nome do produto.");
+      if (!dados.sigla) throw new Error("Informe a sigla (ex.: FB).");
+      if (!dados.rendimento_kg || dados.rendimento_kg <= 0) throw new Error("Informe quanto a receita rende em kg.");
+      try {
+        if (p) await q(sb.from("produtos").update(dados).eq("id", p.id));
+        else { const novo = await q(sb.from("produtos").insert(dados).select().single()); fichaProd = novo.id; }
+      } catch (e) {
+        if (String(e.message).includes("sigla")) throw new Error("Essa sigla já é usada por outro produto.");
+        throw e;
+      }
+      await carregarBase(); carregarProdutos(); toast("Produto salvo");
+    },
+  });
+}
+$("#btn-novo-produto").onclick = () => formProduto();
+
+/* =====================================================================
+   INSUMOS
+   ===================================================================== */
+let insFiltro = "todos";
+ligarChips($("#ins-filtro"), d => { insFiltro = d.f; desenharInsumos(); });
+$("#ins-busca").oninput = () => desenharInsumos();
+
+function desenharInsumos() {
+  const busca = $("#ins-busca").value.trim().toLowerCase();
+  let lista = estado.insumos;
+  if (insFiltro === "alerta") lista = lista.filter(i => statusInsumo(i) !== "ok");
+  else if (insFiltro !== "todos") lista = lista.filter(i => i.categoria === insFiltro);
+  if (busca) lista = lista.filter(i => i.nome.toLowerCase().includes(busca));
+  const ing = estado.insumos.filter(i => i.categoria === "ingrediente"), emb = estado.insumos.filter(i => i.categoria === "embalagem");
+  const valor = arr => soma(arr, i => Math.max(0, i.estoque) * i.custo_unit);
+  $("#ins-resumo").innerHTML = `
+    <div class="numero"><span>Valor em ingredientes</span><strong>${brl(valor(ing))}</strong><em>${ing.length} itens</em></div>
+    <div class="numero"><span>Valor em embalagens</span><strong>${brl(valor(emb))}</strong><em>${emb.length} itens</em></div>
+    <div class="numero carne"><span>Em alerta</span><strong>${estado.insumos.filter(i => statusInsumo(i) !== "ok").length}</strong><em>zerados ou abaixo do mínimo</em></div>`;
+  $("#ins-lista").innerHTML = lista.length ? lista.map(i => insumoHTML(i, true)).join("")
+    : `<div class="vazio">${estado.insumos.length ? "Nenhum insumo nesse filtro." : "Nenhum insumo cadastrado. Comece pelos ingredientes e depois cadastre pote, tampa e etiqueta como embalagens."}</div>`;
+  ligarAcoesInsumo($("#ins-lista"), async () => { await carregarBase(); desenharInsumos(); });
+}
+carregadores.insumos = async () => desenharInsumos();
+
+function formInsumo(i = null, aposMudar) {
+  const bg = modal({
+    titulo: i ? `Editar ${i.nome}` : "Novo insumo",
+    corpo: `
+      <label class="campo">Nome<input type="text" id="f-nome" value="${esc(i?.nome || "")}" required placeholder="Ex.: Bacon, Pote 500 ml, Etiqueta"></label>
+      <div class="grade-2">
+        <label class="campo">Tipo<select id="f-cat">
+          <option value="ingrediente" ${i?.categoria !== "embalagem" ? "selected" : ""}>Ingrediente</option>
+          <option value="embalagem" ${i?.categoria === "embalagem" ? "selected" : ""}>Embalagem</option></select></label>
+        <label class="campo">Unidade<select id="f-un">${Object.entries(UNIDADES).map(([u, d]) => `<option value="${u}" ${(i?.unidade || "kg") === u ? "selected" : ""}>${d.nome}</option>`).join("")}</select></label>
+      </div>
+      <div class="grade-2">
+        <label class="campo"><span id="f-custo-rot">Custo por kg (R$)</span><input type="text" id="f-custo" inputmode="decimal" value="${i ? fmtQ(i.custo_unit, 4) : ""}"></label>
+        <label class="campo"><span id="f-min-rot">Estoque mínimo (kg)</span><input type="text" id="f-min" inputmode="decimal" value="${i ? fmtQ(i.estoque_minimo) : ""}" placeholder="Avisa quando ficar abaixo"></label>
+      </div>
+      ${i ? `<p class="sub">Para mudar a quantidade em estoque, use Repor (compra) ou Corrigir contagem.</p>
+        ${usadoEm(i.id).length ? `<p class="aviso">Se trocar a unidade, revise as quantidades nas fichas de: ${usadoEm(i.id).map(p => esc(p.nome)).join(", ")}.</p>` : ""}`
+        : `<label class="campo"><span id="f-est-rot">Estoque atual (kg)</span><input type="text" id="f-est" inputmode="decimal" value="0"></label>`}`,
+    confirmar: "Salvar",
+    aoConfirmar: async bg => {
+      const dados = {
+        nome: $("#f-nome", bg).value.trim(),
+        categoria: $("#f-cat", bg).value,
+        unidade: $("#f-un", bg).value,
+        custo_unit: num($("#f-custo", bg).value) ?? 0,
+        estoque_minimo: num($("#f-min", bg).value) ?? 0,
+      };
+      if (!dados.nome) throw new Error("Informe o nome.");
+      if (i) await q(sb.from("insumos").update(dados).eq("id", i.id));
+      else await q(sb.from("insumos").insert({ ...dados, estoque: num($("#f-est", bg).value) ?? 0 }));
+      toast("Insumo salvo");
+      await aposMudar();
+    },
+  });
+  const atualizarRotulos = () => {
+    const u = $("#f-un", bg).value;
+    $("#f-custo-rot", bg).textContent = `Custo por ${u} (R$)`;
+    $("#f-min-rot", bg).textContent = `Estoque mínimo (${u})`;
+    const r = $("#f-est-rot", bg); if (r) r.textContent = `Estoque atual (${u})`;
+  };
+  $("#f-un", bg).onchange = atualizarRotulos;
+  $("#f-cat", bg).onchange = () => { if (!i && $("#f-cat", bg).value === "embalagem") { $("#f-un", bg).value = "un"; atualizarRotulos(); } };
+  atualizarRotulos();
+}
+$("#btn-novo-ins").onclick = () => formInsumo(null, async () => { await carregarBase(); desenharInsumos(); });
+
+function reporInsumo(ins, aposMudar) {
+  const u = ins.unidade;
+  const bg = modal({
+    titulo: `Repor ${ins.nome}`,
+    corpo: `<p class="sub">Estoque atual: ${qtdU(ins.estoque, u)}, custo médio ${brlUnit(ins.custo_unit)}/${u}</p>
+      <div class="grade-2">
+        <label class="campo">Quantidade comprada (${u})<input type="text" id="r-qtd" inputmode="decimal" required></label>
+        <label class="campo">Preço pago por ${u} (R$)<input type="text" id="r-preco" inputmode="decimal" placeholder="${fmtQ(ins.custo_unit, 4)}"></label>
+      </div>
+      <label class="campo">Ou o valor total pago (R$)<input type="text" id="r-total" inputmode="decimal" placeholder="Calcula o preço por ${u} pra você"></label>
+      <p class="sub" id="r-previa"></p>`,
+    confirmar: "Repor",
+    aoConfirmar: async bg => {
+      const qtd = num($("#r-qtd", bg).value);
+      let preco = num($("#r-preco", bg).value);
+      const total = num($("#r-total", bg).value);
+      if (!qtd || qtd <= 0) throw new Error(`Informe a quantidade em ${u}.`);
+      if (!preco && total) preco = total / qtd;
+      await q(sb.rpc("repor_insumo", { p_id: ins.id, p_qtd: qtd, p_preco: preco }));
+      toast(`${ins.nome} reposto`);
+      await aposMudar();
+    },
+  });
+  const previa = () => {
+    const qtd = num($("#r-qtd", bg).value), total = num($("#r-total", bg).value);
+    let preco = num($("#r-preco", bg).value);
+    if (!preco && total && qtd) preco = total / qtd;
+    if (!qtd) return ($("#r-previa", bg).textContent = "");
+    const est = Number(ins.estoque);
+    const novo = !preco ? Number(ins.custo_unit) : est > 0 ? (est * ins.custo_unit + qtd * preco) / (est + qtd) : preco;
+    $("#r-previa", bg).textContent = `${preco && total && !num($("#r-preco", bg).value) ? `Preço: ${brlUnit(preco)}/${u}. ` : ""}Novo estoque: ${qtdU(est + qtd, u)}. Novo custo médio: ${brlUnit(novo)}/${u}.`;
+  };
+  ["#r-qtd", "#r-preco", "#r-total"].forEach(s => $(s, bg).oninput = previa);
+}
+
+function corrigirContagem(ins, aposMudar) {
+  modal({
+    titulo: `Corrigir contagem: ${ins.nome}`,
+    corpo: `<p class="sub">O sistema diz ${qtdU(ins.estoque, ins.unidade)}. Informe quanto você contou de verdade. A diferença fica registrada no histórico do insumo.</p>
+      <label class="campo">Quantidade real (${ins.unidade})<input type="text" id="c-qtd" inputmode="decimal" required></label>
+      <label class="campo">Motivo<input type="text" id="c-obs" placeholder="Ex.: contagem mensal, perda, quebra"></label>`,
+    confirmar: "Salvar contagem",
+    aoConfirmar: async bg => {
+      const v = num($("#c-qtd", bg).value);
+      if (v === null) throw new Error("Informe a quantidade.");
+      await q(sb.rpc("ajustar_insumo", { p_id: ins.id, p_novo: v, p_obs: $("#c-obs", bg).value }));
+      toast("Contagem corrigida");
+      await aposMudar();
+    },
+  });
+}
+
+async function historicoInsumo(ins) {
+  const rows = await q(sb.from("movimentos_insumos").select("*").eq("insumo_id", ins.id).order("created_at", { ascending: false }).limit(100));
+  const rot = { reposicao: ["entrada", "Compra"], consumo: ["saida", "Produção"], ajuste: ["baixa", "Ajuste"] };
+  modal({
+    titulo: `Histórico: ${ins.nome}`,
+    corpo: rows.length ? `<div class="lista">${rows.map(m => `
+      <div class="item"><div class="principal"><span class="tag ${rot[m.tipo][0]}">${rot[m.tipo][1]}</span>
+        <div class="meta">${dataHora(m.created_at)}${m.lote_id ? `, lote ${esc(m.lote_id)}` : ""}${m.observacao ? `, ${esc(m.observacao)}` : ""}${m.tipo === "reposicao" && m.custo_unit ? `, ${brlUnit(m.custo_unit)}/${m.unidade}` : ""}</div></div>
+        <span class="peso ${m.qtd < 0 ? "negativo" : ""}">${m.qtd > 0 ? "+" : ""}${qtdU(m.qtd, m.unidade || ins.unidade)}</span></div>`).join("")}</div>`
+      : `<div class="vazio">Sem movimentações ainda.</div>`,
+    cancelar: "Fechar",
+  });
+}
+
+function excluirInsumo(ins, aposMudar) {
+  const usos = usadoEm(ins.id);
+  modal({
+    titulo: `Excluir ${ins.nome}?`,
+    corpo: usos.length ? `<p class="aviso">Esse insumo está na ficha de: ${usos.map(p => esc(p.nome)).join(", ")}. Ele vai sair dessas fichas.</p>` : `<p>Essa ação não pode ser desfeita.</p>`,
+    confirmar: "Excluir", perigo: true,
+    aoConfirmar: async () => { await q(sb.from("insumos").delete().eq("id", ins.id)); toast("Insumo excluído"); await aposMudar(); },
+  });
+}
+
+iniciar();
+</script>
+</body>
+</html>
